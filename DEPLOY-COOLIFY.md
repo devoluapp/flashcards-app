@@ -26,7 +26,7 @@ aparecendo no rodapé do site.
 No Coolify existem (pelo menos) dois jeitos de rodar um `docker-compose.yml`, e eles
 **não são intercambiáveis**:
 
-| | `Project → + New Resource` → card **"Docker Compose Empty"** (em "Docker Based") | `Project → + New Resource` → card **"Private Repository (with Deploy Key)"** (em "Git Based") → campo **Build Pack = "Docker Compose"** |
+| | `Project → + New Resource → Service → Docker Compose Empty` | `Project → + New Resource → Application → build pack "Docker Compose"` |
 |---|---|---|
 | Origem do compose | Você cola o YAML direto na UI | O Coolify clona um repositório Git de verdade |
 | Acesso ao código-fonte | **Não tem** — só existe o YAML colado | Tem o checkout completo do repo |
@@ -34,24 +34,14 @@ No Coolify existem (pelo menos) dois jeitos de rodar um `docker-compose.yml`, e 
 | Bom para | Colar um compose que só usa `image:` prontas (Postgres, Redis, etc.) | Qualquer stack que precisa buildar Dockerfiles do seu próprio código |
 
 O nosso `docker-compose.yml` builda duas imagens a partir de código do repositório
-(`./backend` e `./import-worker`) — por isso **precisa** ser o segundo tipo, puxando
-de um repo Git. É exatamente esse o motivo de nada ter subido: a opção "Docker
-Compose Empty" nunca teve acesso aos arquivos do seu projeto para buildar.
+(`./backend` e `./import-worker`) — por isso **precisa** ser o segundo tipo
+("Application" com build pack "Docker Compose", puxando de um repo Git). É
+exatamente esse o motivo de nada ter subido: a opção "Docker Compose Empty" nunca
+teve acesso aos arquivos do seu projeto para buildar.
 
-> **Onde fica esse tal de "Build Pack = Docker Compose", na prática (testado no
-> Coolify 4.1.2):** não é um card visível na tela inicial de "New Resource" — só
-> aparecem lá os cards "Dockerfile", "Docker Compose Empty" e "Docker Image" (seção
-> "Docker Based"). O "Build Pack" é um **dropdown que só aparece depois** que você
-> clica num card Git ("Public Repository", "Private Repository (with GitHub App)" ou
-> "Private Repository (with Deploy Key)") e a tela seguinte pede Repository URL/
-> Branch — é *nesse* formulário que existe o campo **Build Pack**, com as opções
-> Nixpacks / Railpack (Beta) / Static / Dockerfile / **Docker Compose**. Fácil de não
-> achar se você ficar só olhando os cards da primeira tela.
-
-A partir daqui o guia usa sempre **card Git (Private Repository with Deploy Key) →
-Build Pack "Docker Compose"** (backend) e **card Git → Build Pack "Dockerfile"**
-(frontend), as duas apontando pro **mesmo repositório** Git, cada uma com sua
-própria "Base Directory".
+A partir daqui o guia usa sempre **Application → Docker Compose** (backend) e
+**Application → Dockerfile** (frontend), as duas apontando pro **mesmo repositório**
+Git, cada uma com sua própria "Base Directory".
 
 ---
 
@@ -101,25 +91,10 @@ O caminho mais simples e que funciona com qualquer conta GitHub (sem instalar Ap
 
 ## 3. Recurso do backend (PocketBase + import-worker)
 
-Passo a passo exato na UI (não existe um card "Docker Compose" na tela inicial —
-veja o quadro na seção 0 se isso não fizer sentido ainda):
+**Project → + New Resource → Application** (não "Service"!) → escolha o repo
+`flashcards-app` → build pack **Docker Compose**.
 
-1. Abra o projeto (ex.: **Devoluapp**) → aba **Production** (ou o environment que
-   você usa) → **+ New**.
-2. Na tela "New Resource", em **Applications → Git Based**, clique **"Private
-   Repository (with Deploy Key)"** (reaproveita a deploy key da seção 2 — **não**
-   clique em "Docker Compose Empty", que fica em "Docker Based" e é o tipo errado).
-3. Selecione a deploy key cadastrada (ex.: `github_devoluapp_key`).
-4. Abre o formulário "Create a new Application". Preencha:
-   - **Repository URL**: `git@github.com:devoluapp/flashcards-app.git`
-   - **Branch**: `main`
-   - **Build Pack**: troque de "Nixpacks" (padrão) para **"Docker Compose"**
-   - **Base Directory**: `/`
-5. Clique **Continue**. Só depois desse clique é que aparece o campo **Docker
-   Compose Location** — confirme que está `/docker-compose.yml` (ou ajuste, se o
-   Coolify sugerir outro caminho).
-
-Configuração (resumo dos campos que importam, alguns já preenchidos acima):
+Configuração:
 
 | Campo | Valor |
 |---|---|
@@ -205,11 +180,8 @@ painel admin abre.
 
 ## 4. Recurso do frontend (SvelteKit estático)
 
-Mesmo fluxo da seção 3, num segundo recurso: **+ New** → **"Private Repository
-(with Deploy Key)"** → mesma deploy key → **Repository URL**
-`git@github.com:devoluapp/flashcards-app.git` novamente (é o mesmo repo, o que
-muda é a Base Directory) → **Build Pack = "Dockerfile"** (dessa vez, não "Docker
-Compose") → **Continue**.
+**Project → + New Resource → Application** → **mesmo repo** `flashcards-app` →
+build pack **Dockerfile**.
 
 | Campo | Valor |
 |---|---|
@@ -367,9 +339,9 @@ já que é a única fonte de verdade do produto:
 ## Apêndice — Troubleshooting
 
 - **Build falha com "no such file or directory" em algo tipo `COPY pb_migrations`.**
-  Confirme que o recurso foi criado a partir de um card **Git** com **Build Pack =
-  "Docker Compose"** (não a partir do card **"Docker Compose Empty"**) e que a
-  `Docker Compose Location` aponta pro `docker-compose.yml` certo do repo clonado.
+  Confirme que o recurso é `Application → Docker Compose` (não `Service → Docker
+  Compose Empty`) e que a `Docker Compose Location` aponta pro
+  `docker-compose.yml` certo do repo clonado.
 - **Build do frontend falha achando `package.json` ou `Dockerfile`.** Confira a
   `Base Directory` do recurso do frontend — precisa ser `/web` (o Dockerfile e o
   `package.json` do SvelteKit estão dentro dessa pasta, não na raiz do repo).
