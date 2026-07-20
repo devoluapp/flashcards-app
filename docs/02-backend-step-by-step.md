@@ -209,7 +209,7 @@ O worker autentica como `_superusers`, processa os `pending` e escuta novos em t
 > contexto (foi exatamente esse o erro na primeira tentativa deste projeto). O
 > passo a passo certo, completo e testado — incluindo a env `PB_ADMIN_EMAIL`/
 > `PB_ADMIN_PASSWORD`, o build arg `PB_VERSION`, armazenamento persistente e o
-> release automático por tag semver — está em `../DEPLOY-COOLIFY.md` §3.
+> deploy automático a cada push via webhook — está em `../DEPLOY-COOLIFY.md` §3.
 
 ✅ **Pronto quando:** os dois containers ficam `running` e o log do PocketBase mostra as migrations aplicadas.
 

@@ -11,9 +11,9 @@ O app Android é um projeto à parte, em repositório próprio — nada neste gu
 
 Cobre: por que sua tentativa anterior não subiu, como configurar os dois recursos
 certos no Coolify (os dois apontando pro mesmo repo, cada um com sua própria "Base
-Directory"), como o volume de dados (`pb_data`) sobrevive a cada deploy, e como uma
-tag `vX.Y.Z` passa a disparar sozinha um novo deploy dos dois juntos — com a versão
-aparecendo no rodapé do site.
+Directory"), como o volume de dados (`pb_data`) sobrevive a cada deploy, e como um
+push na `main` passa a disparar sozinho um novo deploy dos dois juntos, via webhook
+nativo do Coolify (sem token de API do Coolify guardado no GitHub).
 
 > Pré-requisitos que este guia **não** cobre: instalar o Coolify em si e conectar um
 > servidor a ele. Assumimos que você já tem um Coolify rodando e com um servidor
@@ -58,8 +58,8 @@ própria "Base Directory".
 ## 1. Criar o repositório no GitHub
 
 O projeto já está com `git init` feito e o primeiro commit pronto localmente (backend
-+ frontend juntos, fluxo de "esqueci a senha", Dockerfiles ajustados, workflow de
-deploy por tag). Falta só criar o repositório remoto vazio e empurrar.
++ frontend juntos, fluxo de "esqueci a senha", Dockerfiles ajustados). Falta só criar
+o repositório remoto vazio e empurrar.
 
 1. No GitHub, crie **um repositório vazio** (sem README, sem `.gitignore`, sem
    license — já temos tudo local): por exemplo `devoluapp/flashcards-app` (privado,
@@ -126,7 +126,7 @@ Configuração (resumo dos campos que importam, alguns já preenchidos acima):
 | Branch | `main` |
 | Base Directory | `/` |
 | Docker Compose Location | `/docker-compose.yml` |
-| Automatic deployment (push) | **desligado** — os deploys acontecem só via tag (passo 8) |
+| Automatic deployment (push) | **ligado** — ver seção 6 (webhook do GitHub dispara o deploy a cada push na `main`) |
 
 ### 3.1 Variáveis de ambiente
 
@@ -230,7 +230,7 @@ build pack **Dockerfile**.
 | Base Directory | `/web` |
 | Dockerfile Location | `Dockerfile` (combinado com a Base Directory acima, vira `/web/Dockerfile` — confira no preview do Coolify) |
 | Port (interna) | `80` |
-| Automatic deployment (push) | **desligado** (mesma lógica do backend) |
+| Automatic deployment (push) | **ligado** (mesma lógica do backend, ver seção 6) |
 
 ### 4.1 Variáveis de ambiente (build-time!)
 
@@ -242,9 +242,16 @@ rebuildar. No Coolify, ao criar cada uma dessas envs, marque a opção
 | Chave | Valor |
 |---|---|
 | `PUBLIC_PB_URL` | `https://api.seuflashcards.com` |
-| `PUBLIC_APP_VERSION` | `v0.1.0` (valor inicial — depois disso quem atualiza sozinho é o workflow do passo 8) |
+| `PUBLIC_APP_VERSION` | `v0.1.0` (valor fixo — sem o workflow de tag, ninguém atualiza isso sozinho; troque manualmente quando quiser e redeploy pra refletir) |
 
 O `web/Dockerfile` já repassa essas duas como `ARG`/`ENV` pro `npm run build`.
+
+> Quer o rodapé mostrar automaticamente o commit de cada deploy, sem tocar
+> manualmente nessa env? O Coolify tem um toggle **Advanced → Include Source Commit
+> in Build**, que expõe `SOURCE_COMMIT` (hash do commit) como build arg — dá pra
+> usar isso como fallback do `PUBLIC_APP_VERSION` no `web/Dockerfile` se quiser
+> automatizar depois. Não fizemos isso por padrão pra não misturar mais uma peça
+> nesse guia; é um ajuste à parte, avise se quiser que a gente implemente.
 
 ### 4.2 Domínio
 
@@ -267,76 +274,66 @@ O PocketBase já vem com política de CORS permissiva por padrão — não preci
 
 ---
 
-## 6. Gerar o token de API do Coolify
+## 6. Deploy automático a cada push na `main` (webhook nativo, sem token de API)
 
-**Coolify → Keys & Tokens → API Tokens** → criar um token novo marcando as
-permissões **Deploy** e **Write** (a segunda é usada pra atualizar a env
-`PUBLIC_APP_VERSION` a cada release). Guarde o valor — só é mostrado uma vez.
+Descartamos de propósito a rota "token de API do Coolify guardado como secret no
+GitHub Actions": esse token, com permissão de Deploy (+ Write, se for atualizar env),
+consegue disparar deploy em **qualquer** recurso do seu Coolify — não só nesses dois.
+Um vazamento do secret do repo vira um raio de ação muito maior do que precisamos.
 
-Anote também, de cada recurso (backend e frontend), o **UUID** — aparece na URL do
-recurso no painel (`.../application/<uuid>`) ou na aba **Webhooks**/**General**.
+Em vez disso, usamos o mecanismo nativo de webhook do Coolify: um webhook **por
+recurso**, GitHub → Coolify, cada um autenticado com um secret específico daquele
+recurso (não um token guarda-chuva). Nada disso fica armazenado no GitHub — o
+secret só existe na configuração do webhook em si.
 
----
+### 6.1 Pegar a URL e o secret de cada recurso
 
-## 7. Segredos no GitHub
+Em **cada um** dos dois recursos (backend e frontend) → aba **Webhooks** → seção
+"Manual Git Webhooks" → **GitHub**:
 
-Repositório `flashcards-app` → **Settings → Secrets and variables → Actions → New
-repository secret**:
+- **URL** — é a mesma nos dois recursos:
+  `https://coolify.devoluapp.cloud/webhooks/source/github/events/manual`
+- **GitHub Webhook Secret** — clique no ícone de olho pra revelar; é **diferente**
+  em cada recurso. Copie os dois valores (um do backend, um do frontend).
 
-| Secret | Valor |
-|---|---|
-| `COOLIFY_URL` | `https://coolify.devoluapp.cloud` (sem barra no final) |
-| `COOLIFY_TOKEN` | o token do passo 6 |
-| `COOLIFY_BACKEND_UUID` | UUID do recurso do backend |
-| `COOLIFY_FRONTEND_UUID` | UUID do recurso do frontend |
+### 6.2 Cadastrar os dois webhooks no GitHub
 
-Um único workflow (`.github/workflows/deploy.yml`, na raiz do repo) usa os quatro.
+Repositório `flashcards-app` → **Settings → Webhooks → Add webhook**, **duas
+vezes** (uma por recurso — a URL é igual, só o secret muda):
 
----
+| Campo | Webhook do backend | Webhook do frontend |
+|---|---|---|
+| Payload URL | `https://coolify.devoluapp.cloud/webhooks/source/github/events/manual` | (mesma URL) |
+| Content type | `application/json` | `application/json` |
+| Secret | secret do recurso backend (passo 6.1) | secret do recurso frontend (passo 6.1) |
+| Which events | só o evento `push` | só o evento `push` |
 
-## 8. Como funciona o deploy por tag semver
+> Por que dois webhooks apontando pra mesma URL? A URL não identifica o recurso —
+> quem faz isso é o secret. Um único webhook só carrega um secret, então cobrir os
+> dois recursos precisa de duas entradas (o GitHub permite múltiplos webhooks
+> apontando pro mesmo endereço sem problema).
 
-O workflow só dispara quando você empurra uma tag no formato `vX.Y.Z`. Um push comum
-na branch `main` **não** dispara nada — é por isso que desligamos o "Automatic
-deployment" nativo do Coolify nos passos 3 e 4: a única porta de entrada pro deploy
-é a tag.
+### 6.3 Confirmar "Auto Deploy" ligado nos dois recursos
 
-Fluxo de release:
+Em cada recurso → aba **Advanced** → seção **Deployment** → confira que **Auto
+Deploy** está marcado (tooltip: "Automatically deploy new commits based on Git
+webhooks."). Já vem ligado por padrão ao criar o recurso; se por algum motivo
+estiver desmarcado, marque e clique **Save**.
 
-```bash
-git checkout main
-git pull
-# ... seus commits normais, merge de PRs, etc. (sem deploy nenhum acontecendo) ...
+✅ **Pronto quando:** um `git push` normal na `main` já aparece sozinho na aba
+**Deployments** dos dois recursos, sem precisar clicar em **Deploy** manualmente.
+Teste com um commit qualquer (ex.: um ajuste de comentário) e acompanhe as duas
+abas de Deployments.
 
-git tag v1.4.0
-git push origin v1.4.0
-```
-
-O que acontece:
-
-1. GitHub Actions detecta o push da tag `v1.4.0`.
-2. Primeiro faz `PATCH` na env `PUBLIC_APP_VERSION` do recurso do frontend no
-   Coolify pra `v1.4.0` (usa `github.ref_name`, o nome exato da tag).
-3. Chama `POST /api/v1/deploy?uuid=<backend>,<frontend>` do Coolify (endpoint
-   oficial da API, aceita as duas UUIDs separadas por vírgula numa chamada só) —
-   isso builda e sobe backend e frontend juntos, na mesma release, pegando a versão
-   mais recente da branch configurada (que, no fluxo normal de "mergeei tudo pra
-   main e agora crio a tag", é exatamente o commit que a tag aponta).
-4. No frontend, esse build já sai com `PUBLIC_APP_VERSION=v1.4.0` embutido — o
-   rodapé do site passa a mostrar "Flashcards v1.4.0".
-
-Quer testar sem esperar um release de verdade? Crie uma tag de teste:
-```bash
-git tag v0.1.1 && git push origin v0.1.1
-```
-e acompanhe em **GitHub → Actions** (o job rodando) e no Coolify (**Deployments**,
-aba de cada recurso) os dois builds acontecendo.
-
-Pra remover uma tag de teste depois: `git push --delete origin v0.1.1 && git tag -d v0.1.1`.
+> **Trade-off pra ter em mente:** todo push na `main` agora deploya — não tem mais
+> a etapa de "só a tag vira release". Se seu fluxo de trabalho faz merge direto na
+> `main`, cada merge já vai pro ar. Se em algum momento quiser voltar a controlar
+> quando deploya, é só desligar "Auto Deploy" nos dois recursos (o webhook continua
+> cadastrado, só para de ter efeito) e disparar deploy manual pelo botão do Coolify.
 
 ---
 
-## 9. Backup dos dados
+## 7. Backup dos dados
 
 `pb_data` (banco SQLite + imagens enviadas) mora agora num caminho fixo do host
 (`/data/flashcards/pb_data`, ou o que você definiu em `PB_DATA_DIR`). Duas camadas,
@@ -355,13 +352,13 @@ já que é a única fonte de verdade do produto:
 
 ---
 
-## 10. Checklist final
+## 8. Checklist final
 
 - [ ] Repositório `flashcards-app` criado no GitHub e com o push inicial.
 - [ ] Deploy key cadastrada no Coolify (uma só, reaproveitada nos dois recursos).
 - [ ] Recurso do backend: `Application` + build pack `Docker Compose`, Base Directory
       `/`, envs (`PB_ADMIN_EMAIL`, `PB_ADMIN_PASSWORD`, `PB_FRONTEND_URL`), domínio
-      `api.seuflashcards.com`, "Automatic deployment" desligado.
+      `api.seuflashcards.com`, "Auto Deploy" ligado.
 - [ ] Storages do backend mostrando o bind mount de `pb_data` no caminho certo.
 - [ ] "Delete Unused Volumes" desligado nas configs do servidor.
 - [ ] Login no painel admin do PocketBase com `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD`
@@ -369,12 +366,11 @@ já que é a única fonte de verdade do produto:
       SMTP configurado no painel admin.
 - [ ] Recurso do frontend: `Application` + build pack `Dockerfile`, Base Directory
       `/web`, envs `PUBLIC_PB_URL`/`PUBLIC_APP_VERSION` marcadas **buildtime**,
-      domínio `app.seuflashcards.com`, "Automatic deployment" desligado.
-- [ ] Token de API do Coolify gerado (permissões Deploy + Write).
-- [ ] Secrets `COOLIFY_URL`, `COOLIFY_TOKEN`, `COOLIFY_BACKEND_UUID`,
-      `COOLIFY_FRONTEND_UUID` cadastrados no repo no GitHub.
-- [ ] Testado: `git tag vX.Y.Z && git push origin vX.Y.Z` dispara o deploy dos dois
-      recursos e a versão aparece no rodapé do site.
+      domínio `app.seuflashcards.com`, "Auto Deploy" ligado.
+- [ ] Webhooks do GitHub cadastrados (dois, mesma URL, um secret por recurso — passo
+      6.2) e "Auto Deploy" confirmado nos dois recursos (passo 6.3).
+- [ ] Testado: um `git push` normal na `main` dispara sozinho o deploy dos dois
+      recursos (sem clicar em Deploy no painel).
 - [ ] Backup do PocketBase configurado (S3) + cron de tar do host como reforço.
 
 ---
@@ -409,9 +405,16 @@ já que é a única fonte de verdade do produto:
 - **E-mail de "esqueci a senha" nunca chega.** Confira `Settings → Mail settings` no
   painel do PocketBase (`/_/`) — sem SMTP configurado lá, o envio falha em silêncio
   (o endpoint da API sempre responde sucesso, por design anti-enumeração de e-mails).
-- **O rodapé do site mostra "dev" em vez da versão.** `PUBLIC_APP_VERSION` não estava
-  marcada como **buildtime** no Coolify, ou o workflow do GitHub Actions não rodou
-  (confira a aba Actions do repo na tag que você empurrou).
-- **Push normal na `main` disparou um deploy sem eu querer.** Confira, nos dois
-  recursos, se "Automatic deployment" / o webhook de push do Coolify está mesmo
-  desligado — só o workflow de tag deve chamar `/api/v1/deploy`.
+- **O rodapé do site mostra "dev" em vez da versão.** `PUBLIC_APP_VERSION` não
+  estava marcada como **buildtime** no Coolify, ou o valor da env está vazio —
+  desde a seção 6, ninguém atualiza essa env automaticamente; é um valor manual.
+- **Um push na `main` não disparou o deploy.** Confira, em cada recurso, a aba
+  **Webhooks** — o GitHub deveria mostrar uma entrega recente com status 200 em
+  **Settings → Webhooks → (o webhook) → Recent Deliveries**, do lado do GitHub. Se
+  não aparece nenhuma entrega: o webhook não foi cadastrado certo (revise a seção
+  6.2). Se aparece com erro/status diferente de 200: confira se o secret usado no
+  GitHub bate exatamente com o do recurso (seção 6.1) e se "Auto Deploy" está
+  marcado em **Advanced** (seção 6.3).
+- **Quero voltar a controlar quando deploya (nem todo push).** Desligue "Auto
+  Deploy" em **Advanced** nos dois recursos — o webhook continua cadastrado no
+  GitHub, só para de ter efeito. Deploy volta a ser só pelo botão manual no painel.

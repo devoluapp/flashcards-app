@@ -24,8 +24,8 @@ import-worker/                 # serviço Node que processa importações
 web/                            # frontend SvelteKit (SPA estático + nginx, ver web/README.md)
 ```
 
-Deploy em produção (Coolify, backend + frontend web, releases por tag semver): ver
-`DEPLOY-COOLIFY.md`, na raiz deste mesmo repositório.
+Deploy em produção (Coolify, backend + frontend web, deploy automático a cada push
+na `main` via webhook): ver `DEPLOY-COOLIFY.md`, na raiz deste mesmo repositório.
 
 ## Começe por aqui
 

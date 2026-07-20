@@ -123,8 +123,8 @@ renderizar conteúdo que não é do próprio usuário autenticado.
 
 Ver `../DEPLOY-COOLIFY.md` (raiz do repo) — cobre o `Dockerfile`/`nginx.conf` deste
 diretório (build estático + nginx com fallback de SPA), as envs `PUBLIC_PB_URL` e
-`PUBLIC_APP_VERSION` (precisam ser marcadas **buildtime** no Coolify) e o workflow
-de release por tag semver.
+`PUBLIC_APP_VERSION` (precisam ser marcadas **buildtime** no Coolify) e o deploy
+automático a cada push na `main` via webhook nativo do Coolify.
 
 ## Consistência com o Android
 
