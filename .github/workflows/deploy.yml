@@ -1,0 +1,22 @@
+# Dispara um deploy no Coolify só quando uma tag de versão semântica (ex.: v1.4.0)
+# é empurrada — pushes normais na branch NÃO disparam deploy (isso é intencional:
+# o webhook automático de push fica desligado no recurso do Coolify, ver
+# DEPLOY-COOLIFY.md na raiz do monorepo). Como a tag normalmente é criada em cima do
+# commit que já está na ponta da branch configurada no Coolify, o deploy pega
+# exatamente esse commit.
+name: Deploy no Coolify (release)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar deploy do backend no Coolify
+        run: |
+          curl --fail --silent --show-error --request POST \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy?uuid=${{ secrets.COOLIFY_BACKEND_UUID }}&force=false" \
+            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
