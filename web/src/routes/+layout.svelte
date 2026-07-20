@@ -1,0 +1,48 @@
+<script lang="ts">
+	import '../app.css';
+	import favicon from '$lib/assets/favicon.svg';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { auth } from '$lib/stores/auth.svelte';
+	import Nav from '$lib/components/Nav.svelte';
+	import ToastHost from '$lib/components/ToastHost.svelte';
+	import AppFooter from '$lib/components/AppFooter.svelte';
+
+	let { children } = $props();
+
+	const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
+	let isPublicRoute = $derived(PUBLIC_ROUTES.includes(page.url.pathname));
+
+	// Auth guard client-side: sem sessão válida -> /login; com sessão, fora de /login /register.
+	$effect(() => {
+		if (!auth.isValid && !isPublicRoute) {
+			goto(`/login?next=${encodeURIComponent(page.url.pathname)}`);
+		} else if (auth.isValid && isPublicRoute) {
+			goto('/decks');
+		}
+	});
+</script>
+
+<svelte:head>
+	<link rel="icon" href={favicon} />
+	<title>Flashcards</title>
+</svelte:head>
+
+<ToastHost />
+
+{#if auth.isValid && !isPublicRoute}
+	<div class="flex min-h-dvh flex-col">
+		<Nav />
+		<main class="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+			{@render children()}
+		</main>
+		<AppFooter />
+	</div>
+{:else if isPublicRoute}
+	<div class="flex min-h-dvh flex-col bg-gradient-to-br from-brand-50 via-white to-neutral-50 dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-900">
+		<main class="grid flex-1 place-items-center px-4">
+			{@render children()}
+		</main>
+		<AppFooter />
+	</div>
+{/if}

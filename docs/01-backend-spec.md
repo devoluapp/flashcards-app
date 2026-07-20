@@ -359,14 +359,18 @@ Libs do Worker: `jszip`, `sql.js`, `papaparse`, `fzstd` (fase 2), SDK PocketBase
 
 ## 11. Estrutura do repositório
 
+> Monorepo (`flashcards-app/`) com backend e frontend web juntos — só o app
+> Android fica num repositório à parte. Ver `../DEPLOY-COOLIFY.md` para o deploy.
+
 ```
-flashcards-backend/
+flashcards-app/
 ├─ README.md
+├─ DEPLOY-COOLIFY.md
 ├─ docker-compose.yml
 ├─ docs/
 │  ├─ 01-backend-spec.md            (este arquivo)
 │  ├─ 02-backend-step-by-step.md    (guia passo a passo)
-│  └─ 03-web-frontend-build.md      (frontend web)
+│  └─ 03-web-frontend-build.md      (histórico — frontend real está em web/)
 ├─ backend/
 │  ├─ Dockerfile
 │  ├─ pb_migrations/                (schema versionado — sintaxe v0.39.7)
@@ -377,11 +381,12 @@ flashcards-backend/
 │  │  └─ 1721300400_import_jobs.js
 │  └─ pb_hooks/
 │     └─ main.pb.js                 (quota/validação)
-└─ import-worker/
-   ├─ Dockerfile
-   ├─ package.json
-   ├─ tsconfig.json
-   └─ src/{index.ts, pb.ts, parsers/{csv.ts,quizlet.ts,anki.ts}}
+├─ import-worker/
+│  ├─ Dockerfile
+│  ├─ package.json
+│  ├─ tsconfig.json
+│  └─ src/{index.ts, pb.ts, parsers/{csv.ts,quizlet.ts,anki.ts}}
+└─ web/                              (frontend SvelteKit — ver web/README.md)
 ```
 
 ---

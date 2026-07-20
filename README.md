@@ -1,14 +1,18 @@
-# Flashcards — Backend (PocketBase v0.39.7)
+# Flashcards (monorepo: backend + frontend web)
 
-Backend único e sincronizável para um app de flashcards com **FSRS**. Multiusuário, upload de imagem com proporção/limite e importação em lote (Anki/Quizlet/CSV). Frontend atual: **Android nativo (Kotlin)**. O frontend web tem projeto próprio em `docs/03-web-frontend-build.md`.
+Backend único e sincronizável para um app de flashcards com **FSRS** (PocketBase),
+mais o **frontend web** (SvelteKit) que o consome. Multiusuário, upload de imagem
+com proporção/limite e importação em lote (Anki/Quizlet/CSV). Existe também um
+**app Android nativo (Kotlin)**, que vive em repositório próprio, isolado deste
+(não depende de nada aqui além de falar com a mesma API).
 
 ## Conteúdo do repositório
 
 ```
 docs/
   01-backend-spec.md          # especificação completa (o "porquê" e o "o quê")
-  02-backend-step-by-step.md   # guia passo a passo para subir no Coolify
-  03-web-frontend-build.md     # projeto do frontend web (fase futura)
+  02-backend-step-by-step.md   # guia passo a passo do backend (SMTP, backups, hardening)
+  03-web-frontend-build.md     # projeto original do frontend web (histórico — hoje é web/)
 docker-compose.yml             # PocketBase + Import Worker (deploy Coolify)
 docker-compose-local.yml       # mesma stack, mas com porta exposta p/ localhost (uso local)
 scripts/smoke-test.sh          # smoke test de integração cobrindo hooks/regras/import
@@ -17,9 +21,11 @@ backend/
   pb_migrations/               # schema versionado (sintaxe JSVM v0.23+)
   pb_hooks/main.pb.js          # quota/validação/regras de negócio
 import-worker/                 # serviço Node que processa importações
+web/                            # frontend SvelteKit (SPA estático + nginx, ver web/README.md)
 ```
 
-Deploy em produção (Coolify, backend + frontend web, releases por tag semver): ver `../DEPLOY-COOLIFY.md` (raiz do monorepo).
+Deploy em produção (Coolify, backend + frontend web, releases por tag semver): ver
+`DEPLOY-COOLIFY.md`, na raiz deste mesmo repositório.
 
 ## Começe por aqui
 

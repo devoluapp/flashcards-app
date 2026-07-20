@@ -1,5 +1,10 @@
 # Flashcards — Construção do Frontend Web
 
+> **Histórico:** este documento foi o plano original do frontend web, antes de ele
+> existir. Hoje o frontend já está implementado em `../web/` (ver `../web/README.md`
+> pro estado real: stack, estrutura, o que foi/não foi implementado). Mantido aqui
+> como referência de intenção/roadmap original.
+>
 > Documento de projeto para o **frontend web** (fase posterior ao Android). O backend (PocketBase v0.39.7) já está pronto para os dois clientes; aqui detalhamos como construir a casca web.
 > Regra de ouro: **nenhuma regra de negócio nova no frontend** — ele orquestra chamadas ao PocketBase e roda o FSRS no cliente.
 

@@ -11,7 +11,7 @@ Sumário: 0) pré-requisitos · 1) rodar local · 2) criar admin · 3) validar m
 - PocketBase **v0.39.7** (você já tem). Confirme: `./pocketbase --version`.
 - Node 22+ (para o Import Worker) e Git.
 - Acesso ao seu Coolify (`https://coolify.devoluapp.cloud`).
-- Este diretório (`flashcards-backend/`) versionado num repositório Git que o Coolify consiga puxar.
+- Este repositório (`flashcards-app/`, monorepo com backend + `web/`) versionado no Git, num remoto que o Coolify consiga puxar (ver `../DEPLOY-COOLIFY.md`).
 
 ✅ **Pronto quando:** `./pocketbase --version` mostra 0.39.7 e você consegue commitar/puxar o repo.
 
@@ -22,7 +22,7 @@ Sumário: 0) pré-requisitos · 1) rodar local · 2) criar admin · 3) validar m
 Objetivo: validar tudo na sua máquina antes de tocar na VPS.
 
 ```bash
-cd flashcards-backend
+cd flashcards-app
 ./pocketbase serve \
   --dir=./backend/pb_data \
   --migrationsDir=./backend/pb_migrations \
@@ -203,13 +203,13 @@ O worker autentica como `_superusers`, processa os `pending` e escuta novos em t
 
 ## 9. Deploy no Coolify
 
-1. Suba o repositório (GitHub/Git) que o Coolify consiga acessar.
-2. No projeto **Devoluapp** → **+ Add Resource** → **Docker Compose Empty**.
-3. Cole o conteúdo do `docker-compose.yml` (ou aponte para o compose do repo).
-4. Em **Environment Variables** do serviço, defina:
-   - `PB_ADMIN_EMAIL`, `PB_ADMIN_PASSWORD` (para o worker).
-5. Confirme o `PB_VERSION=0.39.7` no build arg do serviço `pocketbase`.
-6. **Deploy.** O PocketBase aplica as migrations no primeiro boot.
+> ⚠️ **Não** use "+ Add Resource → Service → Docker Compose Empty" colando o
+> conteúdo do `docker-compose.yml` — esse tipo de recurso não tem acesso ao
+> código-fonte do repo, então os `build: context: ./backend` falham por falta de
+> contexto (foi exatamente esse o erro na primeira tentativa deste projeto). O
+> passo a passo certo, completo e testado — incluindo a env `PB_ADMIN_EMAIL`/
+> `PB_ADMIN_PASSWORD`, o build arg `PB_VERSION`, armazenamento persistente e o
+> release automático por tag semver — está em `../DEPLOY-COOLIFY.md` §3.
 
 ✅ **Pronto quando:** os dois containers ficam `running` e o log do PocketBase mostra as migrations aplicadas.
 
