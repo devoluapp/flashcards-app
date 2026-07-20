@@ -1,0 +1,48 @@
+# Flashcards backend — deploy no Coolify.
+# IMPORTANTE: isto é feito para rodar como recurso "Application" com build pack
+# "Docker Compose", apontando para este repositório Git (branch/tag). NÃO cole este
+# conteúdo em "Service -> Docker Compose Empty": esse tipo de recurso não tem acesso
+# ao código-fonte do repo (pb_migrations, pb_hooks, import-worker/src), então os
+# `build:` abaixo falham por falta de contexto. Detalhes em DEPLOY-COOLIFY.md (raiz
+# do monorepo, ao lado desta pasta).
+#
+# pb_migrations e pb_hooks já vão DENTRO da imagem do pocketbase (ver backend/Dockerfile)
+# — assim cada tag/release carrega o schema e os hooks que valiam quando foi gerada.
+# Só pb_data (SQLite + arquivos enviados pelos usuários) é estado de runtime, e fica
+# num bind mount para um caminho FIXO no host (não um volume nomeado do Compose) —
+# evita o recreation de volume entre deploys que já foi reportado no Coolify, e permite
+# backup direto por caminho (tar/rsync) sem depender de `docker volume`.
+
+services:
+  pocketbase:
+    build:
+      context: ./backend
+      args:
+        PB_VERSION: "0.39.7"      # << deve bater com a versão que você instalou
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ${PB_DATA_DIR:-/data/flashcards/pb_data}
+        target: /pb/pb_data
+        is_directory: true
+    environment:
+      - TZ=America/Sao_Paulo
+      # URL pública do frontend web — usada no link do e-mail de "esqueci a senha"
+      # (defina no painel do Coolify, ex.: https://app.seuflashcards.com).
+      - PB_FRONTEND_URL=${PB_FRONTEND_URL}
+    # O Coolify cuida de HTTPS/domínio (aba "Domains" do serviço, aponte pra porta 8090).
+    expose:
+      - "8090"
+
+  import-worker:
+    build:
+      context: ./import-worker
+    restart: unless-stopped
+    depends_on:
+      - pocketbase
+    environment:
+      - TZ=America/Sao_Paulo
+      - PB_URL=http://pocketbase:8090
+      # defina no painel do Coolify (NUNCA no repositório):
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}

@@ -1,0 +1,19 @@
+# Dados/estado de runtime (nunca versionar — é o volume persistente em produção)
+backend/pb_data/
+pb_data_local/
+
+# Node (import-worker)
+import-worker/node_modules/
+import-worker/npm-debug.log*
+
+# Env locais (nunca committar segredos; .env.example fica versionado)
+.env
+.env.local
+!.env.example
+
+# Config local do Claude Code (por dev, não do projeto)
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
