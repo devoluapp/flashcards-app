@@ -30,6 +30,10 @@ services:
       # URL pública do frontend web — usada no link do e-mail de "esqueci a senha"
       # (defina no painel do Coolify, ex.: https://app.seuflashcards.com).
       - PB_FRONTEND_URL=${PB_FRONTEND_URL}
+      # Usados só no boot pra garantir (upsert) o superuser — ver backend/entrypoint.sh.
+      # Mesmas envs que o import-worker já usa pra autenticar (defina no Coolify).
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
     # O Coolify cuida de HTTPS/domínio (aba "Domains" do serviço, aponte pra porta 8090).
     expose:
       - "8090"

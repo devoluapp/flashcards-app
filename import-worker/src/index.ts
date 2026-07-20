@@ -49,8 +49,26 @@ async function processJob(job: ImportJob) {
   }
 }
 
+async function authAdminWithRetry() {
+  let attempt = 0;
+  for (;;) {
+    try {
+      await authAdmin();
+      return;
+    } catch (err: any) {
+      attempt++;
+      const delayMs = Math.min(30_000, attempt * 2_000);
+      console.error(
+        `falha ao autenticar no pocketbase (tentativa ${attempt}, nova tentativa em ${delayMs}ms):`,
+        err?.message ?? err,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
 async function main() {
-  await authAdmin();
+  await authAdminWithRetry();
   console.log("import-worker autenticado. Observando import_jobs...");
 
   // 1) processa o que já está pendente

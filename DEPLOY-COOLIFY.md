@@ -26,7 +26,7 @@ aparecendo no rodapé do site.
 No Coolify existem (pelo menos) dois jeitos de rodar um `docker-compose.yml`, e eles
 **não são intercambiáveis**:
 
-| | `Project → + New Resource → Service → Docker Compose Empty` | `Project → + New Resource → Application → build pack "Docker Compose"` |
+| | `Project → + New Resource` → card **"Docker Compose Empty"** (em "Docker Based") | `Project → + New Resource` → card **"Private Repository (with Deploy Key)"** (em "Git Based") → campo **Build Pack = "Docker Compose"** |
 |---|---|---|
 | Origem do compose | Você cola o YAML direto na UI | O Coolify clona um repositório Git de verdade |
 | Acesso ao código-fonte | **Não tem** — só existe o YAML colado | Tem o checkout completo do repo |
@@ -34,14 +34,24 @@ No Coolify existem (pelo menos) dois jeitos de rodar um `docker-compose.yml`, e 
 | Bom para | Colar um compose que só usa `image:` prontas (Postgres, Redis, etc.) | Qualquer stack que precisa buildar Dockerfiles do seu próprio código |
 
 O nosso `docker-compose.yml` builda duas imagens a partir de código do repositório
-(`./backend` e `./import-worker`) — por isso **precisa** ser o segundo tipo
-("Application" com build pack "Docker Compose", puxando de um repo Git). É
-exatamente esse o motivo de nada ter subido: a opção "Docker Compose Empty" nunca
-teve acesso aos arquivos do seu projeto para buildar.
+(`./backend` e `./import-worker`) — por isso **precisa** ser o segundo tipo, puxando
+de um repo Git. É exatamente esse o motivo de nada ter subido: a opção "Docker
+Compose Empty" nunca teve acesso aos arquivos do seu projeto para buildar.
 
-A partir daqui o guia usa sempre **Application → Docker Compose** (backend) e
-**Application → Dockerfile** (frontend), as duas apontando pro **mesmo repositório**
-Git, cada uma com sua própria "Base Directory".
+> **Onde fica esse tal de "Build Pack = Docker Compose", na prática (testado no
+> Coolify 4.1.2):** não é um card visível na tela inicial de "New Resource" — só
+> aparecem lá os cards "Dockerfile", "Docker Compose Empty" e "Docker Image" (seção
+> "Docker Based"). O "Build Pack" é um **dropdown que só aparece depois** que você
+> clica num card Git ("Public Repository", "Private Repository (with GitHub App)" ou
+> "Private Repository (with Deploy Key)") e a tela seguinte pede Repository URL/
+> Branch — é *nesse* formulário que existe o campo **Build Pack**, com as opções
+> Nixpacks / Railpack (Beta) / Static / Dockerfile / **Docker Compose**. Fácil de não
+> achar se você ficar só olhando os cards da primeira tela.
+
+A partir daqui o guia usa sempre **card Git (Private Repository with Deploy Key) →
+Build Pack "Docker Compose"** (backend) e **card Git → Build Pack "Dockerfile"**
+(frontend), as duas apontando pro **mesmo repositório** Git, cada uma com sua
+própria "Base Directory".
 
 ---
 
@@ -91,10 +101,25 @@ O caminho mais simples e que funciona com qualquer conta GitHub (sem instalar Ap
 
 ## 3. Recurso do backend (PocketBase + import-worker)
 
-**Project → + New Resource → Application** (não "Service"!) → escolha o repo
-`flashcards-app` → build pack **Docker Compose**.
+Passo a passo exato na UI (não existe um card "Docker Compose" na tela inicial —
+veja o quadro na seção 0 se isso não fizer sentido ainda):
 
-Configuração:
+1. Abra o projeto (ex.: **Devoluapp**) → aba **Production** (ou o environment que
+   você usa) → **+ New**.
+2. Na tela "New Resource", em **Applications → Git Based**, clique **"Private
+   Repository (with Deploy Key)"** (reaproveita a deploy key da seção 2 — **não**
+   clique em "Docker Compose Empty", que fica em "Docker Based" e é o tipo errado).
+3. Selecione a deploy key cadastrada (ex.: `github_devoluapp_key`).
+4. Abre o formulário "Create a new Application". Preencha:
+   - **Repository URL**: `git@github.com:devoluapp/flashcards-app.git`
+   - **Branch**: `main`
+   - **Build Pack**: troque de "Nixpacks" (padrão) para **"Docker Compose"**
+   - **Base Directory**: `/`
+5. Clique **Continue**. Só depois desse clique é que aparece o campo **Docker
+   Compose Location** — confirme que está `/docker-compose.yml` (ou ajuste, se o
+   Coolify sugerir outro caminho).
+
+Configuração (resumo dos campos que importam, alguns já preenchidos acima):
 
 | Campo | Valor |
 |---|---|
@@ -109,10 +134,16 @@ Aba **Environment Variables** do recurso:
 
 | Chave | Valor | Observação |
 |---|---|---|
-| `PB_ADMIN_EMAIL` | seu e-mail de admin | usado pelo import-worker pra autenticar como superuser |
-| `PB_ADMIN_PASSWORD` | senha forte | idem — gere algo longo, não reaproveite senha |
+| `PB_ADMIN_EMAIL` | seu e-mail de admin | usado pelo `pocketbase` (cria/atualiza o superuser no boot — ver `backend/entrypoint.sh`) e pelo `import-worker` pra autenticar |
+| `PB_ADMIN_PASSWORD` | senha forte (8+ caracteres, mínimo exigido pelo PocketBase) | idem — gere algo longo, não reaproveite senha |
 | `PB_FRONTEND_URL` | `https://app.seuflashcards.com` | link do e-mail de "esqueci a senha" aponta pra cá |
 | `PB_DATA_DIR` | `/data/flashcards/pb_data` | caminho no **host** onde o SQLite + imagens ficam (pode manter o default do compose, é só pra deixar explícito) |
+
+> Essas envs precisam estar marcadas como disponíveis para **ambos os serviços**
+> (`pocketbase` e `import-worker`) do recurso — no Coolify, envs de um recurso
+> "Docker Compose" já ficam visíveis para todos os serviços do compose por padrão,
+> então normalmente não precisa fazer nada extra aqui, só confirmar que cadastrou os
+> valores uma vez.
 
 ### 3.2 Armazenamento persistente (não perder dados a cada deploy)
 
@@ -156,25 +187,30 @@ certificado (Let's Encrypt) automaticamente.
 O `import-worker` **não** precisa de domínio — ele só fala com o `pocketbase` pela
 rede interna do Compose (`http://pocketbase:8090`).
 
-### 3.4 Primeiro deploy manual
+### 3.4 Primeiro deploy
+
+O `backend/entrypoint.sh` já roda `pocketbase superuser upsert "$PB_ADMIN_EMAIL"
+"$PB_ADMIN_PASSWORD"` **antes** de `pocketbase serve`, toda vez que o container
+sobe — não precisa mais logar no terminal do container pra criar o superuser à mão.
+Isso também resolve o problema de "corrida" do primeiro deploy: como o
+`import-worker` só consegue autenticar depois que esse superuser existe, criar sem
+depender de um passo manual evita o restart loop dele enquanto você corre pra abrir
+o terminal (ver troubleshooting).
 
 Clique **Deploy**. Depois que subir:
 
-1. Abra o terminal do container `pocketbase` (botão na UI do Coolify, ou
-   `docker exec`) e crie o superuser:
-   ```bash
-   /pb/pocketbase superuser upsert admin@seudominio.com 'SenhaForte123!'
-   ```
-2. Acesse `https://api.seuflashcards.com/_/` e configure **Settings → Mail settings**
-   (SMTP — ver `docs/02-backend-step-by-step.md` §11). Sem isso o e-mail de "esqueci
-   a senha" não é entregue (o endpoint responde OK, mas o envio falha silenciosamente).
+1. Acesse `https://api.seuflashcards.com/_/` e entre com o `PB_ADMIN_EMAIL`/
+   `PB_ADMIN_PASSWORD` que você cadastrou nas envs do passo 3.1.
+2. Configure **Settings → Mail settings** (SMTP — ver
+   `docs/02-backend-step-by-step.md` §11). Sem isso o e-mail de "esqueci a senha"
+   não é entregue (o endpoint responde OK, mas o envio falha silenciosamente).
 3. Rode o smoke test contra a URL pública, se quiser confirmar tudo:
    ```bash
    PB_URL=https://api.seuflashcards.com ./scripts/smoke-test.sh
    ```
 
 ✅ **Pronto quando:** `https://api.seuflashcards.com/api/health` responde 200 e o
-painel admin abre.
+painel admin abre com o login do passo 1.
 
 ---
 
@@ -323,7 +359,9 @@ já que é a única fonte de verdade do produto:
       `api.seuflashcards.com`, "Automatic deployment" desligado.
 - [ ] Storages do backend mostrando o bind mount de `pb_data` no caminho certo.
 - [ ] "Delete Unused Volumes" desligado nas configs do servidor.
-- [ ] Superuser do PocketBase criado + SMTP configurado no painel admin.
+- [ ] Login no painel admin do PocketBase com `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD`
+      testado (superuser é criado sozinho no boot, via `backend/entrypoint.sh`) +
+      SMTP configurado no painel admin.
 - [ ] Recurso do frontend: `Application` + build pack `Dockerfile`, Base Directory
       `/web`, envs `PUBLIC_PB_URL`/`PUBLIC_APP_VERSION` marcadas **buildtime**,
       domínio `app.seuflashcards.com`, "Automatic deployment" desligado.
@@ -339,9 +377,23 @@ já que é a única fonte de verdade do produto:
 ## Apêndice — Troubleshooting
 
 - **Build falha com "no such file or directory" em algo tipo `COPY pb_migrations`.**
-  Confirme que o recurso é `Application → Docker Compose` (não `Service → Docker
-  Compose Empty`) e que a `Docker Compose Location` aponta pro
-  `docker-compose.yml` certo do repo clonado.
+  Confirme que o recurso foi criado a partir de um card **Git** com **Build Pack =
+  "Docker Compose"** (não a partir do card **"Docker Compose Empty"**) e que a
+  `Docker Compose Location` aponta pro `docker-compose.yml` certo do repo clonado.
+- **`import-worker` fica em loop de `ClientResponseError 400: Failed to
+  authenticate.` no primeiro deploy, o Coolify para tudo antes de dar tempo de
+  criar o superuser.** Era o comportamento antigo (superuser só existia depois de
+  um passo manual, e o worker morria com `process.exit(1)` na primeira falha de
+  auth). Já corrigido em duas frentes — confirme que seu checkout tem as duas:
+  - `backend/entrypoint.sh` roda `pocketbase superuser upsert` no boot (idempotente,
+    usa `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD`), então o superuser já existe antes do
+    `import-worker` tentar autenticar.
+  - `import-worker/src/index.ts` tenta autenticar com retry/backoff em vez de
+    encerrar o processo na primeira falha — então mesmo numa inicialização lenta do
+    `pocketbase` ele não entra em crash loop.
+  Se ainda falhar depois disso, confira se `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD`
+  batem exatamente entre os dois serviços (são as mesmas envs do passo 3.1) e se a
+  senha tem pelo menos 8 caracteres (mínimo exigido pelo PocketBase para superuser).
 - **Build do frontend falha achando `package.json` ou `Dockerfile`.** Confira a
   `Base Directory` do recurso do frontend — precisa ser `/web` (o Dockerfile e o
   `package.json` do SvelteKit estão dentro dessa pasta, não na raiz do repo).
