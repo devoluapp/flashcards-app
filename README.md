@@ -40,11 +40,17 @@ Deploy em produção (Coolify, backend + frontend web, releases por tag semver):
 
    # Opção B — Docker (build igual ao deploy, porta 8090 exposta no host)
    docker compose -f docker-compose-local.yml up -d --build pocketbase
-   docker compose -f docker-compose-local.yml exec pocketbase \
-     /pb/pocketbase superuser upsert admin@local.dev 'SenhaLocal123!'
+   # entrypoint.sh já garante o superuser admin@local.dev/SenhaLocal123! sozinho no
+   # boot — só rode o upsert manual abaixo se quiser outro e-mail/senha localmente.
+   # docker compose -f docker-compose-local.yml exec pocketbase \
+   #   /pb/pocketbase superuser upsert admin@local.dev 'SenhaLocal123!'
    docker compose -f docker-compose-local.yml up -d --build import-worker
    ```
-4. Teste: `./scripts/smoke-test.sh` (integração, via REST real) e `cd import-worker && npm test` (unitário, parsers csv/quizlet/anki). Veja `docs/02-backend-step-by-step.md` §4.1 para detalhes.
+4. Teste: `PB_ADMIN_EMAIL=admin@local.dev PB_ADMIN_PASSWORD='SenhaLocal123!' ./scripts/smoke-test.sh`
+   (integração, via REST real — usa o superuser do passo 3 pra marcar as contas de
+   teste como verificadas, já que `authRule = "verified = true"` bloqueia login de
+   conta não confirmada) e `cd import-worker && npm test` (unitário, parsers
+   csv/quizlet/anki). Veja `docs/02-backend-step-by-step.md` §4.1 para detalhes.
 
 ## Avisos importantes
 

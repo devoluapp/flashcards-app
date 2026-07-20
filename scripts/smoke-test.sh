@@ -7,11 +7,17 @@
 # limite de tamanho de imagem, o fluxo de "esqueci a senha" (anti-enumeração)
 # e o fluxo de import_jobs processado pelo worker.
 #
-# Uso: PB_URL=http://localhost:8090 ./scripts/smoke-test.sh
-# Requer: curl, jq. Não requer credenciais de superusuário.
+# Uso: PB_URL=http://localhost:8090 PB_ADMIN_EMAIL=... PB_ADMIN_PASSWORD=... ./scripts/smoke-test.sh
+# Requer: curl, jq. Desde 1721300600_require_email_verification.js (authRule =
+# "verified = true" na coleção users), contas novas não conseguem logar sem
+# confirmar o e-mail — como o teste não tem como ler a caixa de entrada, ele usa
+# o superuser (mesmas envs do import-worker/backend/entrypoint.sh) pra marcar as
+# contas de teste como verified=true na mão.
 set -uo pipefail
 
 PB_URL="${PB_URL:-http://localhost:8090}"
+: "${PB_ADMIN_EMAIL:?defina PB_ADMIN_EMAIL (superuser) — necessário pra verificar as contas de teste}"
+: "${PB_ADMIN_PASSWORD:?defina PB_ADMIN_PASSWORD (superuser) — necessário pra verificar as contas de teste}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 STAMP="$(date +%s)"
@@ -49,9 +55,21 @@ EMAIL_A="a.$STAMP@teste.dev"; EMAIL_B="b.$STAMP@teste.dev"; PASS_="Senha123!"
 
 code=$(req POST /api/collections/users/records "{\"email\":\"$EMAIL_A\",\"password\":\"$PASS_\",\"passwordConfirm\":\"$PASS_\",\"name\":\"Usuário A\",\"plan\":\"free\",\"desired_retention\":0.9}")
 assert_eq "registro do usuário A -> 200" 200 "$code"
+USER_A_ID=$(jq -r .id "$TMP/body")
 
 code=$(req POST /api/collections/users/records "{\"email\":\"$EMAIL_B\",\"password\":\"$PASS_\",\"passwordConfirm\":\"$PASS_\",\"name\":\"Usuário B\",\"plan\":\"free\",\"desired_retention\":0.9}")
 assert_eq "registro do usuário B -> 200" 200 "$code"
+USER_B_ID=$(jq -r .id "$TMP/body")
+
+code=$(req POST /api/collections/_superusers/auth-with-password "{\"identity\":\"$PB_ADMIN_EMAIL\",\"password\":\"$PB_ADMIN_PASSWORD\"}")
+assert_eq "login do superuser -> 200" 200 "$code"
+SUPER_TOKEN=$(jq -r .token "$TMP/body")
+
+code=$(req PATCH "/api/collections/users/records/$USER_A_ID" '{"verified":true}' "$SUPER_TOKEN")
+assert_eq "marcar usuário A como verificado (authRule exige verified=true) -> 200" 200 "$code"
+
+code=$(req PATCH "/api/collections/users/records/$USER_B_ID" '{"verified":true}' "$SUPER_TOKEN")
+assert_eq "marcar usuário B como verificado (authRule exige verified=true) -> 200" 200 "$code"
 
 code=$(req POST /api/collections/users/auth-with-password "{\"identity\":\"$EMAIL_A\",\"password\":\"$PASS_\"}")
 assert_eq "login do usuário A -> 200" 200 "$code"

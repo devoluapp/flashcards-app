@@ -7,18 +7,41 @@
 	let email = $state('');
 	let password = $state('');
 	let loading = $state(false);
+	let unverified = $state(false);
+	let resending = $state(false);
 
 	async function submit(e: Event) {
 		e.preventDefault();
 		loading = true;
+		unverified = false;
 		try {
 			await pb.collection('users').authWithPassword(email, password);
 			const next = page.url.searchParams.get('next');
 			goto(next && next.startsWith('/') ? next : '/decks');
 		} catch (err) {
-			pushToast(errorMessage(err), 'error');
+			const msg = errorMessage(err);
+			// Mensagem exata que o PocketBase devolve quando authRule = "verified = true"
+			// barra o login (ver backend/pb_migrations/1721300600_require_email_verification.js)
+			// — confirmada rodando contra uma instância real, não tem a palavra "verif".
+			if (msg.toLowerCase().includes('collection requirements')) {
+				unverified = true;
+			} else {
+				pushToast(msg, 'error');
+			}
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function resend() {
+		resending = true;
+		try {
+			await pb.collection('users').requestVerification(email);
+			pushToast('E-mail de confirmação reenviado.', 'success');
+		} catch (err) {
+			pushToast(errorMessage(err), 'error');
+		} finally {
+			resending = false;
 		}
 	}
 </script>
@@ -74,6 +97,22 @@
 			{loading ? 'Entrando…' : 'Entrar'}
 		</button>
 	</form>
+
+	{#if unverified}
+		<div class="mt-4 space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center dark:border-amber-900 dark:bg-amber-950/40">
+			<p class="text-sm text-amber-800 dark:text-amber-200">
+				Confirme seu e-mail antes de entrar.
+			</p>
+			<button
+				type="button"
+				onclick={resend}
+				disabled={resending}
+				class="text-sm font-medium text-brand-600 hover:underline disabled:opacity-60"
+			>
+				{resending ? 'Reenviando…' : 'Reenviar e-mail de confirmação'}
+			</button>
+		</div>
+	{/if}
 
 	<p class="mt-6 text-center text-sm text-neutral-500">
 		Ainda não tem conta? <a href="/register" class="font-medium text-brand-600 hover:underline">Criar conta</a>

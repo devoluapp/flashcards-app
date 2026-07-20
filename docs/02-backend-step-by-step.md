@@ -227,7 +227,7 @@ O worker autentica como `_superusers`, processa os `pending` e escuta novos em t
 
 ## 11. E-mail (SMTP)
 
-No painel `Settings → Mail settings`, configure um SMTP (ex.: seu **Usesend**, ou Resend/Brevo). Necessário para verificação de e-mail e reset de senha.
+No painel `Settings → Mail settings`, configure um SMTP (ex.: seu **Usesend**, ou Resend/Brevo). **Obrigatório** — desde a migration `1721300600_require_email_verification.js`, a conta só consegue autenticar depois de confirmar o e-mail (`authRule = "verified = true"` na coleção `users`), então sem SMTP configurado ninguém consegue criar conta nova.
 
 Defina também a env `PB_FRONTEND_URL` (no `docker-compose.yml`/Coolify) com a URL pública do frontend web, ex. `https://app.seuflashcards.com`. A migration `1721300500_reset_password_email.js` usa essa env para montar o link do e-mail de "esqueci a senha" apontando para `/reset-password?token=...` no frontend, em vez da UI admin do PocketBase. Sem a env, o link cai para `http://localhost:5173` (uso local).
 
@@ -247,11 +247,23 @@ Defina também a env `PB_FRONTEND_URL` (no `docker-compose.yml`/Coolify) com a U
 
 - Ative o **rate limiter** nativo (Settings) para rotas de auth e criação.
 - Revise as **API Rules** (nada público por engano).
-- Habilite **verificação de e-mail** obrigatória para ações sensíveis.
+- ~~Habilite verificação de e-mail obrigatória~~ — feito nas migrations
+  `1721300600_require_email_verification.js` (`authRule = "verified = true"` na
+  coleção `users` + e-mail de confirmação apontando para `/verify-email` no
+  frontend) e
+  `1721300700_require_verified_for_data_access.js` (`@request.auth.verified = true`
+  nas API Rules de `decks`/`cards`/`review_logs`/`import_jobs`, pra um token emitido
+  antes da conta virar não-verificada também parar de funcionar).
 - Cron de **purga** de registros `deleted=true` antigos (hook `cronAdd`).
 - Guarde os segredos só no Coolify.
 
 ✅ **Pronto quando:** rate limit ativo, rules revisadas, e um cron de limpeza agendado.
+
+> **Contas que já existiam antes dessa migration** ficam com `verified=false` e
+> deixam de conseguir logar até confirmar o e-mail (ou pedir reenvio pela tela de
+> login). Se precisar liberar alguma manualmente (ex.: sua própria conta de teste),
+> dá pra marcar `verified` como `true` direto no painel admin (`/_/` → coleção
+> `users` → abrir o registro → campo `verified`).
 
 ---
 

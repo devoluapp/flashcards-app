@@ -4,18 +4,26 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { pushToast } from '$lib/stores/toast.svelte';
 	import Nav from '$lib/components/Nav.svelte';
 	import ToastHost from '$lib/components/ToastHost.svelte';
 	import AppFooter from '$lib/components/AppFooter.svelte';
 
 	let { children } = $props();
 
-	const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
+	const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
 	let isPublicRoute = $derived(PUBLIC_ROUTES.includes(page.url.pathname));
 
 	// Auth guard client-side: sem sessão válida -> /login; com sessão, fora de /login /register.
+	// Contas não verificadas não têm mais permissão pra ler/escrever dados (ver migration
+	// 1721300700) — uma sessão antiga (token emitido antes da conta virar "não verificada"
+	// mudar de comportamento) precisa ser derrubada aqui em vez de deixar a UI travada.
 	$effect(() => {
-		if (!auth.isValid && !isPublicRoute) {
+		if (auth.isValid && auth.user && !auth.user.verified && page.url.pathname !== '/verify-email') {
+			auth.logout();
+			pushToast('Confirme seu e-mail para continuar.', 'info');
+			goto(`/login?next=${encodeURIComponent(page.url.pathname)}`);
+		} else if (!auth.isValid && !isPublicRoute) {
 			goto(`/login?next=${encodeURIComponent(page.url.pathname)}`);
 		} else if (auth.isValid && isPublicRoute) {
 			goto('/decks');

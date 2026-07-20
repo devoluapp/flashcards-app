@@ -24,6 +24,10 @@ services:
       # URL do frontend web local (porta padrão do `npm run dev` do SvelteKit) —
       # usada no link do e-mail de "esqueci a senha".
       - PB_FRONTEND_URL=${PB_FRONTEND_URL:-http://localhost:5173}
+      # Usados só no boot pra garantir (upsert) o superuser — ver backend/entrypoint.sh.
+      # Mesmo default do import-worker abaixo, pra não precisar criar na mão.
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL:-admin@local.dev}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD:-SenhaLocal123!}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8090/api/health"]
       interval: 5s

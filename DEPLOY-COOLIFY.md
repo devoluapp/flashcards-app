@@ -204,9 +204,14 @@ Clique **Deploy**. Depois que subir:
 2. Configure **Settings → Mail settings** (SMTP — ver
    `docs/02-backend-step-by-step.md` §11). Sem isso o e-mail de "esqueci a senha"
    não é entregue (o endpoint responde OK, mas o envio falha silenciosamente).
-3. Rode o smoke test contra a URL pública, se quiser confirmar tudo:
+3. Rode o smoke test contra a URL pública, se quiser confirmar tudo (precisa do
+   `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD` do passo 3.1 — o script usa o superuser pra
+   marcar as contas de teste como verificadas, já que `authRule = "verified = true"`
+   bloqueia login de conta não confirmada):
    ```bash
-   PB_URL=https://api.seuflashcards.com ./scripts/smoke-test.sh
+   PB_URL=https://api.seuflashcards.com \
+   PB_ADMIN_EMAIL=admin@seudominio.com PB_ADMIN_PASSWORD='SenhaForte123!' \
+   ./scripts/smoke-test.sh
    ```
 
 ✅ **Pronto quando:** `https://api.seuflashcards.com/api/health` responde 200 e o
