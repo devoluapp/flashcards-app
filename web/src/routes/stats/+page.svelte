@@ -2,7 +2,7 @@
 	import { pb, currentUser } from '$lib/pb';
 	import type { CardRecord, ReviewLogRecord } from '$lib/types';
 	import Chart from 'chart.js/auto';
-	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
+	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 
 	let loading = $state(true);
 	let logs = $state<ReviewLogRecord[]>([]);
@@ -23,11 +23,16 @@
 			[logs, cards] = await Promise.all([
 				pb.collection('review_logs').getFullList<ReviewLogRecord>({
 					filter: `review >= "${since}"`,
-					sort: 'review'
+					sort: 'review',
+					requestKey: null
 				}),
-				pb.collection('cards').getFullList<CardRecord>({ filter: 'deleted=false && suspended=false' })
+				pb.collection('cards').getFullList<CardRecord>({
+					filter: 'deleted=false && suspended=false',
+					requestKey: null
+				})
 			]);
 		} catch (err) {
+			if (isAbortError(err)) return;
 			pushToast(errorMessage(err), 'error');
 		} finally {
 			loading = false;

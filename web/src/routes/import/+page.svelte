@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { pb } from '$lib/pb';
 	import type { DeckRecord, ImportJobRecord, ImportType } from '$lib/types';
-	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
+	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 
 	let decks = $state<DeckRecord[]>([]);
 	let type = $state<ImportType>('csv');
@@ -26,8 +26,17 @@
 	let unsubscribe: (() => void) | null = null;
 
 	async function loadDecks() {
-		decks = await pb.collection('decks').getFullList<DeckRecord>({ filter: 'deleted=false', sort: 'name' });
-		if (decks.length) targetDeck = decks[0].id;
+		try {
+			decks = await pb.collection('decks').getFullList<DeckRecord>({
+				filter: 'deleted=false',
+				sort: 'name',
+				requestKey: null
+			});
+			if (decks.length) targetDeck = decks[0].id;
+		} catch (err) {
+			if (isAbortError(err)) return;
+			pushToast(errorMessage(err), 'error');
+		}
 	}
 	loadDecks();
 

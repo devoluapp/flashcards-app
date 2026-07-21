@@ -5,7 +5,7 @@
 	import { makeScheduler, toFsrsCard, stateName, Rating } from '$lib/fsrs';
 	import { formatInterval } from '$lib/format';
 	import RatingButtons from '$lib/components/RatingButtons.svelte';
-	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
+	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 	import type { RecordLog } from 'ts-fsrs';
 
 	const deckId = $derived(page.params.deckId as string);
@@ -29,7 +29,7 @@
 		try {
 			const now = new Date().toISOString();
 			[deck, queue] = await Promise.all([
-				pb.collection('decks').getOne<DeckRecord>(deckId),
+				pb.collection('decks').getOne<DeckRecord>(deckId, { requestKey: null }),
 				pb.collection('cards').getFullList<CardRecord>({
 					filter: `deck="${deckId}" && due<="${now}" && suspended=false && deleted=false`,
 					sort: 'due',
@@ -38,6 +38,7 @@
 			]);
 			startedAt = Date.now();
 		} catch (err) {
+			if (isAbortError(err)) return;
 			pushToast(errorMessage(err), 'error');
 		} finally {
 			loading = false;

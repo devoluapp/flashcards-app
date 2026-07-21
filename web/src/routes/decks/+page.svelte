@@ -3,7 +3,7 @@
 	import type { DeckRecord } from '$lib/types';
 	import DeckCard from '$lib/components/DeckCard.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
+	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 
 	let decks = $state<DeckRecord[]>([]);
@@ -25,7 +25,8 @@
 		try {
 			decks = await pb.collection('decks').getFullList<DeckRecord>({
 				filter: 'deleted = false',
-				sort: '-created'
+				sort: '-created',
+				requestKey: null
 			});
 			const now = new Date().toISOString();
 			await Promise.all(
@@ -33,15 +34,21 @@
 					const [due, total] = await Promise.all([
 						pb.collection('cards').getList(1, 1, {
 							filter: `deck="${d.id}" && due <= "${now}" && suspended=false && deleted=false`,
-							fields: 'id'
+							fields: 'id',
+							requestKey: null
 						}),
-						pb.collection('cards').getList(1, 1, { filter: `deck="${d.id}" && deleted=false`, fields: 'id' })
+						pb.collection('cards').getList(1, 1, {
+							filter: `deck="${d.id}" && deleted=false`,
+							fields: 'id',
+							requestKey: null
+						})
 					]);
 					dueCounts[d.id] = due.totalItems;
 					totalCounts[d.id] = total.totalItems;
 				})
 			);
 		} catch (err) {
+			if (isAbortError(err)) return;
 			pushToast(errorMessage(err), 'error');
 		} finally {
 			loading = false;

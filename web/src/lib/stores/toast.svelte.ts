@@ -12,6 +12,13 @@ export function pushToast(message: string, kind: Toast['kind'] = 'info', timeout
 	}, timeoutMs);
 }
 
+// Erro de auto-cancelamento do PocketBase (uma requisição mais nova com a mesma
+// "request key" supersedeu essa) — não é um erro de verdade, quem vai atualizar a
+// UI é a requisição nova. Ver https://github.com/pocketbase/js-sdk#auto-cancellation.
+export function isAbortError(err: unknown): boolean {
+	return !!err && typeof err === 'object' && (err as { isAbort?: boolean }).isAbort === true;
+}
+
 export function errorMessage(err: unknown): string {
 	if (err && typeof err === 'object') {
 		const anyErr = err as { response?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };

@@ -3,7 +3,7 @@
 	import { pb, fileUrl } from '$lib/pb';
 	import type { CardRecord, DeckRecord } from '$lib/types';
 	import CardEditor from '$lib/components/CardEditor.svelte';
-	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
+	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 
 	const deckId = $derived(page.params.id as string);
 
@@ -17,13 +17,15 @@
 		loading = true;
 		try {
 			[deck, cards] = await Promise.all([
-				pb.collection('decks').getOne<DeckRecord>(deckId),
+				pb.collection('decks').getOne<DeckRecord>(deckId, { requestKey: null }),
 				pb.collection('cards').getFullList<CardRecord>({
 					filter: `deck="${deckId}" && deleted=false`,
-					sort: 'due'
+					sort: 'due',
+					requestKey: null
 				})
 			]);
 		} catch (err) {
+			if (isAbortError(err)) return;
 			pushToast(errorMessage(err), 'error');
 		} finally {
 			loading = false;
