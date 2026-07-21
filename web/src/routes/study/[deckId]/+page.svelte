@@ -5,6 +5,7 @@
 	import { makeScheduler, toFsrsCard, stateName, Rating } from '$lib/fsrs';
 	import { formatInterval } from '$lib/format';
 	import RatingButtons from '$lib/components/RatingButtons.svelte';
+	import HelpTip from '$lib/components/HelpTip.svelte';
 	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 	import type { RecordLog } from 'ts-fsrs';
 
@@ -184,6 +185,13 @@
 					Mostrar resposta <span class="opacity-60">(espaço)</span>
 				</button>
 			{:else}
+				<div class="mb-2 flex items-center justify-center gap-1.5 text-xs text-neutral-500">
+					<span>Como você lembrou dessa resposta?</span>
+					<HelpTip
+						title="Como funciona a repetição espaçada"
+						text={'Errei: você não lembrou. Difícil: lembrou, mas com esforço. Bom: lembrou tranquilo. Fácil: foi fácil demais. O sistema calcula sozinho quando te mostrar esse card de novo — quanto melhor você lembra, mais tempo ele espera pra te mostrar de novo. Seja honesto na resposta: é isso que faz o agendamento funcionar bem.'}
+					/>
+				</div>
 				<RatingButtons {intervals} onRate={grade} disabled={grading} />
 			{/if}
 		</div>

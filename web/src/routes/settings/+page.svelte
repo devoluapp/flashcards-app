@@ -2,6 +2,7 @@
 	import { pb, fileUrl, currentUser } from '$lib/pb';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
+	import HelpTip from '$lib/components/HelpTip.svelte';
 	import type { UserRecord } from '$lib/types';
 
 	let name = $state(auth.user?.name ?? '');
@@ -124,7 +125,13 @@
 				/>
 			</div>
 			<div>
-				<label for="retention" class="mb-1 block text-sm font-medium">Retenção-alvo (FSRS): {desiredRetention}%</label>
+				<div class="mb-1 flex items-center gap-1.5">
+					<label for="retention" class="text-sm font-medium">Retenção-alvo (FSRS): {desiredRetention}%</label>
+					<HelpTip
+						title="O que é FSRS"
+						text="FSRS é o algoritmo de repetição espaçada que decide quando cada card volta a aparecer — a mesma ideia por trás do Anki, mas calculada de forma mais precisa por card. A retenção-alvo é a chance que você quer ter de lembrar um card quando ele aparecer: 90% é um bom equilíbrio. Subir esse número gera mais revisões (mais seguro); descer gera menos revisões (mais rápido, mas com mais chance de esquecer)."
+					/>
+				</div>
 				<input id="retention" type="range" min="70" max="99" bind:value={desiredRetention} class="w-full accent-brand-600" />
 				<p class="mt-1 text-xs text-neutral-500">Quanto maior, mais revisões — e menor a chance de esquecer.</p>
 			</div>

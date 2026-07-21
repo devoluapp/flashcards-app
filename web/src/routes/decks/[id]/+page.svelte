@@ -3,6 +3,7 @@
 	import { pb, fileUrl } from '$lib/pb';
 	import type { CardRecord, DeckRecord } from '$lib/types';
 	import CardEditor from '$lib/components/CardEditor.svelte';
+	import HelpTip from '$lib/components/HelpTip.svelte';
 	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 
 	const deckId = $derived(page.params.id as string);
@@ -97,7 +98,13 @@
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
 	<div>
 		<a href="/decks" class="text-sm text-neutral-500 hover:text-brand-600">← Decks</a>
-		<h1 class="mt-1 text-2xl font-extrabold tracking-tight">{deck?.name ?? '...'}</h1>
+		<div class="mt-1 flex items-center gap-1.5">
+			<h1 class="text-2xl font-extrabold tracking-tight">{deck?.name ?? '...'}</h1>
+			<HelpTip
+				title="O que significam os status"
+				text={'Novo: ainda não estudado. Aprendendo: revisado há pouco, o sistema está te mostrando de novo em pouco tempo pra fixar. Revisão: já consolidado, com intervalos maiores entre uma revisão e outra. Reaprendendo: você errou numa revisão e o card voltou a aparecer com mais frequência até estabilizar de novo.'}
+			/>
+		</div>
 		{#if deck?.description}<p class="text-sm text-neutral-500">{deck.description}</p>{/if}
 	</div>
 	<div class="flex items-center gap-2">

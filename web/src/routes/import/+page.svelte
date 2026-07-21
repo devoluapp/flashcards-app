@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { pb } from '$lib/pb';
 	import type { DeckRecord, ImportJobRecord, ImportType } from '$lib/types';
+	import HelpTip from '$lib/components/HelpTip.svelte';
+	import AiPromptHelper from '$lib/components/AiPromptHelper.svelte';
 	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 
 	let decks = $state<DeckRecord[]>([]);
@@ -9,7 +11,9 @@
 	let newDeckName = $state('');
 	let useNewDeck = $state(false);
 
+	let csvMode = $state<'file' | 'paste'>('file');
 	let csvFile = $state<File | null>(null);
+	let csvText = $state('');
 	let frontCol = $state('front');
 	let backCol = $state('back');
 	let tagsCol = $state('tags');
@@ -43,6 +47,7 @@
 	function reset() {
 		job = null;
 		csvFile = null;
+		csvText = '';
 		ankiFile = null;
 		quizletText = '';
 	}
@@ -64,8 +69,13 @@
 			if (deckId) form.append('target_deck', deckId);
 
 			if (type === 'csv') {
-				if (!csvFile) throw new Error('Selecione um arquivo CSV.');
-				form.append('file', csvFile);
+				if (csvMode === 'file') {
+					if (!csvFile) throw new Error('Selecione um arquivo CSV.');
+					form.append('file', csvFile);
+				} else {
+					if (!csvText.trim()) throw new Error('Cole o texto CSV.');
+					form.append('file', new Blob([csvText], { type: 'text/csv' }), 'colado.csv');
+				}
 				form.append('options', JSON.stringify({ frontCol, backCol, tagsCol, hasHeader }));
 			} else if (type === 'quizlet') {
 				if (!quizletText.trim()) throw new Error('Cole o texto exportado do Quizlet.');
@@ -111,6 +121,10 @@
 <div class="mx-auto max-w-xl">
 	<h1 class="mb-1 text-2xl font-extrabold tracking-tight">Importar cards</h1>
 	<p class="mb-6 text-sm text-neutral-500">De CSV, Quizlet (texto colado) ou Anki (.apkg). O processamento roda em segundo plano.</p>
+
+	<div class="mb-6">
+		<AiPromptHelper context="import" />
+	</div>
 
 	{#if job}
 		<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
@@ -159,7 +173,13 @@
 	{:else}
 		<form onsubmit={submit} class="space-y-5 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
 			<div>
-				<span class="mb-1.5 block text-sm font-medium">Formato</span>
+				<div class="mb-1.5 flex items-center gap-1.5">
+					<span class="text-sm font-medium">Formato</span>
+					<HelpTip
+						title="Qual formato usar"
+						text="CSV: arquivo exportado de planilha (Excel/Sheets) ou o texto que uma IA gerar pra você (veja a seção acima). Quizlet: cole o texto exportado do Quizlet. Anki: arquivo .apkg exportado do Anki (inclusive decks comprados de terceiros)."
+					/>
+				</div>
 				<div class="grid grid-cols-3 gap-2">
 					{#each [['csv', 'CSV'], ['quizlet', 'Quizlet'], ['anki', 'Anki']] as [v, label] (v)}
 						<button
@@ -208,17 +228,51 @@
 			{#if type === 'csv'}
 				<div class="space-y-3">
 					<div>
-						<span class="mb-1 block text-sm font-medium">Arquivo CSV</span>
-						<input
-							type="file"
-							accept=".csv,text/csv"
-							onchange={(e) => (csvFile = (e.target as HTMLInputElement).files?.[0] ?? null)}
-							class="w-full text-sm"
-						/>
+						<div class="mb-1.5 flex items-center justify-between">
+							<span class="text-sm font-medium">Dados do CSV</span>
+							<div class="flex gap-1.5">
+								<button
+									type="button"
+									onclick={() => (csvMode = 'file')}
+									class="rounded-lg border px-2.5 py-1 text-xs font-medium {csvMode === 'file'
+										? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+										: 'border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800'}"
+								>
+									Enviar arquivo
+								</button>
+								<button
+									type="button"
+									onclick={() => (csvMode = 'paste')}
+									class="rounded-lg border px-2.5 py-1 text-xs font-medium {csvMode === 'paste'
+										? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+										: 'border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800'}"
+								>
+									Colar texto
+								</button>
+							</div>
+						</div>
+						{#if csvMode === 'file'}
+							<input
+								type="file"
+								accept=".csv,text/csv"
+								onchange={(e) => (csvFile = (e.target as HTMLInputElement).files?.[0] ?? null)}
+								class="w-full text-sm"
+							/>
+						{:else}
+							<textarea
+								bind:value={csvText}
+								rows="6"
+								placeholder={'front,back,tags\n"Pergunta de exemplo","Resposta de exemplo",tag1;tag2'}
+								class="w-full rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-950"
+							></textarea>
+							<p class="mt-1 text-xs text-neutral-500">Cole aqui o bloco CSV gerado pela IA (veja a seção acima).</p>
+						{/if}
 					</div>
 					<div class="grid grid-cols-3 gap-2">
 						<div>
-							<label for="frontCol" class="mb-1 block text-xs text-neutral-500">Coluna frente</label>
+							<div class="mb-1 flex items-center gap-1">
+								<label for="frontCol" class="text-xs text-neutral-500">Coluna frente</label>
+							</div>
 							<input id="frontCol" bind:value={frontCol} class="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950" />
 						</div>
 						<div>
@@ -230,15 +284,27 @@
 							<input id="tagsCol" bind:value={tagsCol} class="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950" />
 						</div>
 					</div>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={hasHeader} />
-						Primeira linha é cabeçalho
-					</label>
+					<div class="flex items-center gap-1.5">
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={hasHeader} />
+							Primeira linha é cabeçalho
+						</label>
+						<HelpTip
+							title="Nomes das colunas"
+							text="Precisam bater com o cabeçalho do seu CSV. Se você usou o prompt de IA acima sem mudar o cabeçalho, deixe como está (front, back, tags)."
+						/>
+					</div>
 				</div>
 			{:else if type === 'quizlet'}
 				<div class="space-y-3">
 					<div>
-						<label for="quizletText" class="mb-1 block text-sm font-medium">Texto exportado do Quizlet</label>
+						<div class="mb-1 flex items-center gap-1.5">
+							<label for="quizletText" class="text-sm font-medium">Texto exportado do Quizlet</label>
+							<HelpTip
+								title="Como pegar esse texto"
+								text={'No Quizlet: abra o set → menu "..." → Exportar. Copie o texto exportado (cada linha é um card, termo e definição separados por tab) e cole aqui.'}
+							/>
+						</div>
 						<textarea
 							id="quizletText"
 							bind:value={quizletText}

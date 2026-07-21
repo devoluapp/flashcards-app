@@ -4,6 +4,8 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 	import ImageCropUploader from '$lib/components/ImageCropUploader.svelte';
+	import HelpTip from '$lib/components/HelpTip.svelte';
+	import AiPromptHelper from '$lib/components/AiPromptHelper.svelte';
 	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
 
 	let {
@@ -74,8 +76,18 @@
 
 <Modal title={card ? 'Editar card' : 'Novo card'} {onClose} wide>
 	<form onsubmit={save} class="space-y-4">
+		{#if !card}
+			<AiPromptHelper compact context="card" />
+		{/if}
+
 		<div>
-			<span class="mb-1 block text-sm font-medium">Frente</span>
+			<div class="mb-1 flex items-center gap-1.5">
+				<span class="text-sm font-medium">Frente</span>
+				<HelpTip
+					title="Dica"
+					text="Prefira perguntas ou termos curtos e diretos — um conceito por card. Cards atômicos (uma pergunta, uma resposta) são mais fáceis de lembrar do que perguntas longas com várias informações misturadas."
+				/>
+			</div>
 			<RichTextEditor bind:value={front} placeholder="Pergunta, termo ou conceito…" />
 			{#if existingFrontUrl || newFrontPreview}
 				<div class="relative mt-2 inline-block">
@@ -104,7 +116,13 @@
 		</div>
 
 		<div>
-			<span class="mb-1 block text-sm font-medium">Verso</span>
+			<div class="mb-1 flex items-center gap-1.5">
+				<span class="text-sm font-medium">Verso</span>
+				<HelpTip
+					title="Dica"
+					text="Tente ser direto — respostas curtas grudam melhor na memória do que parágrafos inteiros. Se precisar, use negrito ou lista pra destacar o essencial."
+				/>
+			</div>
 			<RichTextEditor bind:value={back} placeholder="Resposta, definição ou explicação…" />
 			{#if existingBackUrl || newBackPreview}
 				<div class="relative mt-2 inline-block">
@@ -133,7 +151,13 @@
 		</div>
 
 		<div>
-			<label for="card-tags" class="mb-1 block text-sm font-medium">Tags (separadas por vírgula)</label>
+			<div class="mb-1 flex items-center gap-1.5">
+				<label for="card-tags" class="text-sm font-medium">Tags (separadas por vírgula)</label>
+				<HelpTip
+					title="Pra que servem"
+					text="Ajudam a organizar cards por assunto dentro do mesmo deck (ex.: separar 'gramática' de 'vocabulário'). Não afetam o estudo nem o agendamento das revisões."
+				/>
+			</div>
 			<input
 				id="card-tags"
 				bind:value={tags}
