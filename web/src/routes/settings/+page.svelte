@@ -6,8 +6,16 @@
 	import { theme, THEMES } from '$lib/stores/theme.svelte';
 	import type { UserRecord } from '$lib/types';
 
+	const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+	// Intl.supportedValuesOf é suportado nos browsers-alvo do app; fallback cobre só o essencial.
+	const ALL_TIMEZONES: string[] =
+		typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [DEFAULT_TIMEZONE, 'UTC'];
+	const TIMEZONES = [DEFAULT_TIMEZONE, ...ALL_TIMEZONES.filter((tz) => tz !== DEFAULT_TIMEZONE).sort()];
+
 	let name = $state(auth.user?.name ?? '');
 	let timezone = $state(auth.user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+	// Garante que o valor atual apareça mesmo se não estiver na lista padrão (ex.: valor legado incomum).
+	const timezoneOptions = $derived(TIMEZONES.includes(timezone) ? TIMEZONES : [timezone, ...TIMEZONES]);
 	let desiredRetention = $state(Math.round((auth.user?.desired_retention ?? 0.9) * 100));
 	let savingProfile = $state(false);
 
@@ -119,11 +127,15 @@
 			</div>
 			<div>
 				<label for="timezone" class="mb-1 block text-sm font-medium">Fuso horário</label>
-				<input
+				<select
 					id="timezone"
 					bind:value={timezone}
 					class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"
-				/>
+				>
+					{#each timezoneOptions as tz (tz)}
+						<option value={tz}>{tz}</option>
+					{/each}
+				</select>
 			</div>
 			<div>
 				<div class="mb-1 flex items-center gap-1.5">
