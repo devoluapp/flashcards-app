@@ -3,6 +3,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
 	import HelpTip from '$lib/components/HelpTip.svelte';
+	import { theme, THEMES } from '$lib/stores/theme.svelte';
 	import type { UserRecord } from '$lib/types';
 
 	let name = $state(auth.user?.name ?? '');
@@ -146,6 +147,35 @@
 	</section>
 
 	<section class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+		<h2 class="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Aparência</h2>
+		<p class="mb-4 text-xs text-neutral-500">
+			Escolha a cor de destaque do app. O modo claro/escuro continua seguindo a preferência do seu sistema.
+		</p>
+		<div class="flex flex-wrap gap-3" role="group" aria-label="Tema de cores">
+			{#each THEMES as t (t.id)}
+				<button
+					type="button"
+					onclick={() => theme.set(t.id)}
+					aria-pressed={theme.current === t.id}
+					class="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-2.5 text-xs font-medium transition {theme.current ===
+					t.id
+						? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+						: 'border-transparent text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800'}"
+				>
+					<span class="grid h-8 w-8 place-items-center rounded-full ring-2 ring-white dark:ring-neutral-900" style:background-color={t.swatch}>
+						{#if theme.current === t.id}
+							<svg viewBox="0 0 24 24" class="h-4 w-4 text-white" fill="none" stroke="currentColor" stroke-width="3"
+								><path d="M5 13l4 4L19 7" /></svg
+							>
+						{/if}
+					</span>
+					{t.label}
+				</button>
+			{/each}
+		</div>
+	</section>
+
+	<section class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
 		<h2 class="mb-4 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Plano</h2>
 		<div class="flex items-center justify-between">
 			<div>
@@ -170,7 +200,7 @@
 					<span>{storagePct}%</span>
 				</div>
 				<div class="h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
-					<div class="h-full bg-brand-600" style:width="{storagePct}%"></div>
+					<div class="h-full bg-brand-600 dark:bg-brand-500" style:width="{storagePct}%"></div>
 				</div>
 			</div>
 		{/if}

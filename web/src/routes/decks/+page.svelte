@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { pb, currentUser } from '$lib/pb';
+	import { pb, currentUser, fileUrl } from '$lib/pb';
 	import type { DeckRecord } from '$lib/types';
 	import DeckCard from '$lib/components/DeckCard.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import ImageCropUploader from '$lib/components/ImageCropUploader.svelte';
 	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 
@@ -17,6 +18,13 @@
 	let description = $state('');
 	let color = $state('#2563eb');
 	let saving = $state(false);
+
+	let coverImageBlob = $state<Blob | null>(null);
+	let coverImageRemoved = $state(false);
+	const existingCoverUrl = $derived(
+		editing?.cover_image && !coverImageRemoved ? fileUrl(editing, editing.cover_image, { thumb: '800x450f' }) : ''
+	);
+	const newCoverPreview = $derived(coverImageBlob ? URL.createObjectURL(coverImageBlob) : '');
 
 	const PALETTE = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#d97706', '#16a34a', '#0891b2', '#4b5563'];
 
@@ -60,6 +68,8 @@
 		name = '';
 		description = '';
 		color = PALETTE[decks.length % PALETTE.length];
+		coverImageBlob = null;
+		coverImageRemoved = false;
 		modalOpen = true;
 	}
 
@@ -68,6 +78,8 @@
 		name = d.name;
 		description = d.description;
 		color = d.color || PALETTE[0];
+		coverImageBlob = null;
+		coverImageRemoved = false;
 		modalOpen = true;
 	}
 
@@ -75,11 +87,18 @@
 		e.preventDefault();
 		saving = true;
 		try {
+			const form = new FormData();
+			form.append('name', name);
+			form.append('description', description);
+			form.append('color', color);
+			if (coverImageBlob) form.append('cover_image', coverImageBlob, 'cover.webp');
+			else if (coverImageRemoved) form.append('cover_image', '');
+
 			if (editing) {
-				const updated = await pb.collection('decks').update<DeckRecord>(editing.id, { name, description, color });
+				const updated = await pb.collection('decks').update<DeckRecord>(editing.id, form);
 				decks = decks.map((d) => (d.id === updated.id ? updated : d));
 			} else {
-				const created = await pb.collection('decks').create<DeckRecord>({ name, description, color });
+				const created = await pb.collection('decks').create<DeckRecord>(form);
 				decks = [created, ...decks];
 				dueCounts[created.id] = 0;
 				totalCounts[created.id] = 0;
@@ -190,6 +209,33 @@
 						></button>
 					{/each}
 				</div>
+			</div>
+			<div>
+				<span class="mb-1 block text-sm font-medium">Capa (opcional)</span>
+				{#if existingCoverUrl || newCoverPreview}
+					<div class="relative inline-block">
+						<img src={newCoverPreview || existingCoverUrl} alt="" class="aspect-[16/9] w-56 rounded-lg object-cover" />
+						<button
+							type="button"
+							aria-label="Remover capa"
+							onclick={() => {
+								coverImageBlob = null;
+								coverImageRemoved = true;
+							}}
+							class="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-white shadow"
+							>×</button
+						>
+					</div>
+				{:else}
+					<ImageCropUploader
+						aspectRatio={16 / 9}
+						maxSide={800}
+						onCropped={(b) => {
+							coverImageBlob = b;
+							coverImageRemoved = false;
+						}}
+					/>
+				{/if}
 			</div>
 			<button
 				type="submit"

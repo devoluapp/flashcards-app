@@ -68,6 +68,6 @@
 	</div>
 
 	<p class="mt-6 text-center text-sm text-neutral-500">
-		<a href="/login" class="font-medium text-brand-600 hover:underline">Entrar</a>
+		<a href="/login" class="font-medium text-brand-600 hover:underline dark:text-brand-400">Entrar</a>
 	</p>
 </div>

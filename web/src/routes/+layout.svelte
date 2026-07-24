@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import '$lib/stores/theme.svelte'; // side effect: aplica o tema salvo em <html data-theme>
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';

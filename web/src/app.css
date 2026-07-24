@@ -4,20 +4,101 @@
 	--font-sans:
 		'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-	--color-brand-50: #eff6ff;
-	--color-brand-100: #dbeafe;
-	--color-brand-200: #bfdbfe;
-	--color-brand-300: #93c5fd;
-	--color-brand-400: #60a5fa;
-	--color-brand-500: #3b82f6;
-	--color-brand-600: #2563eb;
-	--color-brand-700: #1d4ed8;
-	--color-brand-800: #1e40af;
-	--color-brand-900: #1e3a8a;
+	/* Indireção pro sistema de temas: o valor de cada --color-brand-N é uma variável
+	   "crua" (--brand-N) redefinida por tema em vez de um literal — ver bloco abaixo. */
+	--color-brand-50: var(--brand-50);
+	--color-brand-100: var(--brand-100);
+	--color-brand-200: var(--brand-200);
+	--color-brand-300: var(--brand-300);
+	--color-brand-400: var(--brand-400);
+	--color-brand-500: var(--brand-500);
+	--color-brand-600: var(--brand-600);
+	--color-brand-700: var(--brand-700);
+	--color-brand-800: var(--brand-800);
+	--color-brand-900: var(--brand-900);
 }
 
+/*
+ * 5 temas de cor selecionáveis (ver Configurações → Aparência). Cada paleta foi gerada
+ * pra ter a MESMA luminância relativa por degrau (50-900) que o tema padrão (Oceano/azul)
+ * — método: resolver, por HSL, a luminância-alvo de cada degrau do azul original, então
+ * achar a lightness de cada matiz novo que bate essa luminância (script usado documentado
+ * fora do repo). Isso garante que toda combinação de classes já usada no app (bg-brand-600
+ * + text-white, bg-brand-50 + text-brand-700, dark:bg-brand-900/30 + dark:text-brand-300,
+ * etc.) mantém o MESMO contraste WCAG não importa qual tema esteja ativo — só o matiz muda,
+ * a legibilidade não. Os matizes foram escolhidos evitando ficar perto demais do vermelho de
+ * erro (~0°) ou do verde/âmbar de sucesso/aviso (~150-160°/~30-50°), pra um botão "brand" não
+ * ser confundido com um estado semântico.
+ *
+ * `data-theme` fica no <html> — aplicado antes do 1º paint por um script inline em
+ * web/src/app.html (evita flash do tema errado) e trocado em runtime por
+ * web/src/lib/stores/theme.svelte.ts (persiste em localStorage + no perfil do usuário).
+ */
 :root {
 	color-scheme: light dark;
+
+	--brand-50: #eff6ff;
+	--brand-100: #dbeafe;
+	--brand-200: #bfdbfe;
+	--brand-300: #93c5fd;
+	--brand-400: #60a5fa;
+	--brand-500: #3b82f6;
+	--brand-600: #2563eb;
+	--brand-700: #1d4ed8;
+	--brand-800: #1e40af;
+	--brand-900: #1e3a8a;
+}
+
+[data-theme='turquesa'] {
+	--brand-50: #ecf8f9;
+	--brand-100: #d0eef3;
+	--brand-200: #a9e2eb;
+	--brand-300: #69cfdf;
+	--brand-400: #21b1c8;
+	--brand-500: #1293a6;
+	--brand-600: #0b7889;
+	--brand-700: #0b6573;
+	--brand-800: #0c525d;
+	--brand-900: #0d474f;
+}
+
+[data-theme='ametista'] {
+	--brand-50: #f7f4fd;
+	--brand-100: #ece6fa;
+	--brand-200: #ded4f7;
+	--brand-300: #cab8f3;
+	--brand-400: #af93f0;
+	--brand-500: #946ded;
+	--brand-600: #7b4ee6;
+	--brand-700: #6736db;
+	--brand-800: #552bb7;
+	--brand-900: #492a91;
+}
+
+[data-theme='rosa'] {
+	--brand-50: #fdf3f7;
+	--brand-100: #fce1ec;
+	--brand-200: #faccdf;
+	--brand-300: #f8abcb;
+	--brand-400: #f47bad;
+	--brand-500: #ef3e88;
+	--brand-600: #d31765;
+	--brand-700: #af1c5a;
+	--brand-800: #8d1e4c;
+	--brand-900: #741f43;
+}
+
+[data-theme='grafite'] {
+	--brand-50: #f4f5f9;
+	--brand-100: #e5e9f0;
+	--brand-200: #d4d8e2;
+	--brand-300: #bbc1cf;
+	--brand-400: #9aa2b6;
+	--brand-500: #7b869f;
+	--brand-600: #616d8b;
+	--brand-700: #505b77;
+	--brand-800: #404a64;
+	--brand-900: #354059;
 }
 
 html {

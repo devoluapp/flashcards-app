@@ -78,7 +78,7 @@
 		<div>
 			<div class="mb-1 flex items-center justify-between">
 				<label for="password" class="block text-sm font-medium">Senha</label>
-				<a href="/forgot-password" class="text-sm font-medium text-brand-600 hover:underline">Esqueci a senha</a>
+				<a href="/forgot-password" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">Esqueci a senha</a>
 			</div>
 			<input
 				id="password"
@@ -107,7 +107,7 @@
 				type="button"
 				onclick={resend}
 				disabled={resending}
-				class="text-sm font-medium text-brand-600 hover:underline disabled:opacity-60"
+				class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400 disabled:opacity-60"
 			>
 				{resending ? 'Reenviando…' : 'Reenviar e-mail de confirmação'}
 			</button>
@@ -115,6 +115,6 @@
 	{/if}
 
 	<p class="mt-6 text-center text-sm text-neutral-500">
-		Ainda não tem conta? <a href="/register" class="font-medium text-brand-600 hover:underline">Criar conta</a>
+		Ainda não tem conta? <a href="/register" class="font-medium text-brand-600 hover:underline dark:text-brand-400">Criar conta</a>
 	</p>
 </div>

@@ -5,8 +5,18 @@
 	let {
 		onCropped,
 		aspectRatio = 4 / 3,
-		maxSide = 1024
-	}: { onCropped: (blob: Blob) => void; aspectRatio?: number; maxSide?: number } = $props();
+		maxSide = 1024,
+		ratioLabel
+	}: {
+		onCropped: (blob: Blob) => void;
+		aspectRatio?: number;
+		maxSide?: number;
+		ratioLabel?: string;
+	} = $props();
+
+	const displayRatioLabel = $derived(
+		ratioLabel ?? (Math.abs(aspectRatio - 16 / 9) < 0.01 ? '16:9' : Math.abs(aspectRatio - 4 / 3) < 0.01 ? '4:3' : aspectRatio.toFixed(2))
+	);
 
 	let fileInput: HTMLInputElement;
 	let imgEl: HTMLImageElement | undefined = $state();
@@ -106,7 +116,7 @@
 				onclick={confirmCrop}
 				disabled={busy}
 				class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-				>{busy ? 'Cortando…' : 'Usar recorte (4:3)'}</button
+				>{busy ? 'Cortando…' : `Usar recorte (${displayRatioLabel})`}</button
 			>
 		</div>
 	</div>
@@ -114,11 +124,11 @@
 	<button
 		type="button"
 		onclick={pickFile}
-		class="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-neutral-300 py-3 text-sm font-medium text-neutral-500 hover:border-brand-400 hover:text-brand-600 dark:border-neutral-700"
+		class="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-neutral-300 py-3 text-sm font-medium text-neutral-500 hover:border-brand-400 hover:text-brand-600 dark:border-neutral-700 dark:hover:text-brand-400"
 	>
 		<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
 			><path d="M12 16V4m0 0L7 9m5-5 5 5" /><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg
 		>
-		Adicionar imagem (recorte 4:3)
+		Adicionar imagem (recorte {displayRatioLabel})
 	</button>
 {/if}

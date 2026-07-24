@@ -5,6 +5,21 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		<meta name="theme-color" content="#2563eb" />
+		<!--
+			Aplica o tema de cor salvo ANTES do 1º paint, pra quem já escolheu um tema não
+			ver um flash do azul padrão (Oceano) antes do JS da SPA hidratar. Lista de temas
+			válidos duplicada de web/src/lib/stores/theme.svelte.ts (mantenha em sincronia) —
+			não dá pra importar o módulo TS aqui, é HTML estático servido antes do bundle.
+		-->
+		<script>
+			(function () {
+				try {
+					var t = localStorage.getItem('flashcards:theme');
+					var valid = ['oceano', 'turquesa', 'ametista', 'rosa', 'grafite'];
+					document.documentElement.setAttribute('data-theme', valid.indexOf(t) !== -1 ? t : 'oceano');
+				} catch (e) {}
+			})();
+		</script>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
 		<link

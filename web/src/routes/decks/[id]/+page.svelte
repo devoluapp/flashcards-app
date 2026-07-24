@@ -86,7 +86,7 @@
 		relearning: 'Reaprendendo'
 	};
 	const STATE_COLOR: Record<string, string> = {
-		new: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+		new: 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300',
 		learning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
 		review: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
 		relearning: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
@@ -97,7 +97,7 @@
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
 	<div>
-		<a href="/decks" class="text-sm text-neutral-500 hover:text-brand-600">← Decks</a>
+		<a href="/decks" class="text-sm text-neutral-500 hover:text-brand-600 dark:text-neutral-400 dark:hover:text-brand-400">← Decks</a>
 		<div class="mt-1 flex items-center gap-1.5">
 			<h1 class="text-2xl font-extrabold tracking-tight">{deck?.name ?? '...'}</h1>
 			<HelpTip
@@ -161,7 +161,7 @@
 					<button onclick={() => openEdit(c)} title="Editar card" class="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800">
 						<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="m16.5 3.5 4 4L8 20H4v-4L16.5 3.5Z" /></svg>
 					</button>
-					<button onclick={() => removeCard(c)} title="Excluir card" class="rounded-lg p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40">
+					<button onclick={() => removeCard(c)} title="Excluir card" class="rounded-lg p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400">
 						<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14" /></svg>
 					</button>
 				</div>

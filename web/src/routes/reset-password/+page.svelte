@@ -50,7 +50,7 @@
 			<p class="text-sm text-neutral-600 dark:text-neutral-300">
 				Link inválido ou incompleto. Solicite um novo link de redefinição.
 			</p>
-			<a href="/forgot-password" class="font-medium text-brand-600 hover:underline">Esqueci a senha</a>
+			<a href="/forgot-password" class="font-medium text-brand-600 hover:underline dark:text-brand-400">Esqueci a senha</a>
 		</div>
 	{:else}
 		<form onsubmit={submit} class="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
@@ -89,6 +89,6 @@
 	{/if}
 
 	<p class="mt-6 text-center text-sm text-neutral-500">
-		Lembrou a senha? <a href="/login" class="font-medium text-brand-600 hover:underline">Entrar</a>
+		Lembrou a senha? <a href="/login" class="font-medium text-brand-600 hover:underline dark:text-brand-400">Entrar</a>
 	</p>
 </div>

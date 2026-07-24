@@ -49,6 +49,10 @@
 		charts = [];
 		if (!reviewsCanvas || !ratingCanvas || !forecastCanvas) return;
 
+		// Lê a cor de destaque do tema ativo (ver lib/stores/theme.svelte.ts) em vez de
+		// fixar o azul padrão, pra os gráficos acompanharem o tema escolhido em Configurações.
+		const brand600 = getComputedStyle(document.documentElement).getPropertyValue('--color-brand-600').trim() || '#2563eb';
+
 		// revisões por dia (últimos 30 dias)
 		const dayBuckets: Record<string, number> = {};
 		for (let i = DAYS_BACK - 1; i >= 0; i--) {
@@ -63,7 +67,7 @@
 				type: 'bar',
 				data: {
 					labels: Object.keys(dayBuckets).map((k) => k.slice(5)),
-					datasets: [{ label: 'Revisões', data: Object.values(dayBuckets), backgroundColor: '#2563eb', borderRadius: 4 }]
+					datasets: [{ label: 'Revisões', data: Object.values(dayBuckets), backgroundColor: brand600, borderRadius: 4 }]
 				},
 				options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 10 } } } }
 			})
@@ -77,7 +81,7 @@
 				type: 'doughnut',
 				data: {
 					labels: ['Errei', 'Difícil', 'Bom', 'Fácil'],
-					datasets: [{ data: ratingCounts, backgroundColor: ['#dc2626', '#f59e0b', '#10b981', '#2563eb'] }]
+					datasets: [{ data: ratingCounts, backgroundColor: ['#dc2626', '#f59e0b', '#10b981', brand600] }]
 				},
 				options: { plugins: { legend: { position: 'bottom' } } }
 			})

@@ -31,6 +31,7 @@ export interface DeckRecord extends BaseRecord {
 	name: string;
 	description: string;
 	color: string;
+	cover_image: string;
 	parent: string;
 	is_public: boolean;
 	deleted: boolean;

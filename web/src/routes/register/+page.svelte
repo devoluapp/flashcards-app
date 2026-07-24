@@ -80,7 +80,7 @@
 				type="button"
 				onclick={resend}
 				disabled={resending}
-				class="text-sm font-medium text-brand-600 hover:underline disabled:opacity-60"
+				class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400 disabled:opacity-60"
 			>
 				{resending ? 'Reenviando…' : 'Reenviar e-mail de confirmação'}
 			</button>
@@ -139,6 +139,6 @@
 	{/if}
 
 	<p class="mt-6 text-center text-sm text-neutral-500">
-		Já tem conta? <a href="/login" class="font-medium text-brand-600 hover:underline">Entrar</a>
+		Já tem conta? <a href="/login" class="font-medium text-brand-600 hover:underline dark:text-brand-400">Entrar</a>
 	</p>
 </div>

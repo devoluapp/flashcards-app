@@ -168,7 +168,7 @@
 				{/if}
 			{/if}
 
-			<button onclick={reset} class="mt-4 text-sm font-medium text-brand-600 hover:underline">Nova importação</button>
+			<button onclick={reset} class="mt-4 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">Nova importação</button>
 		</div>
 	{:else}
 		<form onsubmit={submit} class="space-y-5 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">

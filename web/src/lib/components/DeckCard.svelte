@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fileUrl } from '$lib/pb';
 	import type { DeckRecord } from '$lib/types';
 
 	let {
@@ -16,12 +17,17 @@
 	} = $props();
 
 	const color = $derived(deck.color || '#2563eb');
+	const coverUrl = $derived(deck.cover_image ? fileUrl(deck, deck.cover_image, { thumb: '800x450f' }) : '');
 </script>
 
 <div
 	class="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
 >
-	<div class="h-1.5 w-full" style:background-color={color}></div>
+	{#if coverUrl}
+		<img src={coverUrl} alt="" class="aspect-[16/9] w-full object-cover" />
+	{:else}
+		<div class="h-1.5 w-full" style:background-color={color}></div>
+	{/if}
 	<div class="flex flex-1 flex-col p-4">
 		<div class="flex items-start justify-between gap-2">
 			<a href="/decks/{deck.id}" class="min-w-0 flex-1">
@@ -43,7 +49,7 @@
 				<button
 					onclick={onDelete}
 					aria-label="Excluir deck"
-					class="rounded-lg p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+					class="rounded-lg p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400"
 				>
 					<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
 						><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14" /></svg

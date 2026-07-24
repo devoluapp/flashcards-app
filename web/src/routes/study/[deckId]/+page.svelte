@@ -126,11 +126,11 @@
 
 <div class="mx-auto max-w-xl">
 	<div class="mb-4 flex items-center justify-between">
-		<a href="/decks/{deckId}" class="text-sm text-neutral-500 hover:text-brand-600">← {deck?.name ?? 'Deck'}</a>
+		<a href="/decks/{deckId}" class="text-sm text-neutral-500 hover:text-brand-600 dark:text-neutral-400 dark:hover:text-brand-400">← {deck?.name ?? 'Deck'}</a>
 		<span class="text-sm text-neutral-500">{studiedCount}/{totalInSession}</span>
 	</div>
 	<div class="mb-6 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
-		<div class="h-full bg-brand-600 transition-all" style:width="{progressPct}%"></div>
+		<div class="h-full bg-brand-600 transition-all dark:bg-brand-500" style:width="{progressPct}%"></div>
 	</div>
 
 	{#if loading}
