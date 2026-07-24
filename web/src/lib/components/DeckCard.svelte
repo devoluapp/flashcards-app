@@ -23,6 +23,7 @@
 <div
 	class="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
 >
+	<a href="/decks/{deck.id}" aria-label={deck.name} class="absolute inset-0"></a>
 	{#if coverUrl}
 		<img src={coverUrl} alt="" class="aspect-[16/9] w-full object-cover" />
 	{:else}
@@ -30,13 +31,13 @@
 	{/if}
 	<div class="flex flex-1 flex-col p-4">
 		<div class="flex items-start justify-between gap-2">
-			<a href="/decks/{deck.id}" class="min-w-0 flex-1">
+			<div class="min-w-0 flex-1">
 				<h3 class="truncate text-base font-bold">{deck.name}</h3>
 				{#if deck.description}
 					<p class="mt-0.5 line-clamp-2 text-sm text-neutral-500">{deck.description}</p>
 				{/if}
-			</a>
-			<div class="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
+			</div>
+			<div class="relative z-10 flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
 				<button
 					onclick={onEdit}
 					aria-label="Editar deck"
@@ -62,7 +63,7 @@
 			<span class="text-xs text-neutral-500">{totalCount} card{totalCount === 1 ? '' : 's'}</span>
 			<a
 				href="/study/{deck.id}"
-				class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition {dueCount > 0
+				class="relative z-10 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition {dueCount > 0
 					? 'bg-brand-600 text-white hover:bg-brand-700'
 					: 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800'}"
 				aria-disabled={dueCount === 0}
