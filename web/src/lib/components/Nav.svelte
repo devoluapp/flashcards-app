@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { fileUrl } from '$lib/pb';
+	import { Settings } from '@lucide/svelte';
 
 	const links = [
 		{ href: '/decks', label: 'Decks', icon: 'layers' },
@@ -47,11 +48,17 @@
 			{#each links as l (l.href)}
 				<a
 					href={l.href}
+					aria-label={l.href === '/settings' ? l.label : undefined}
+					title={l.href === '/settings' ? l.label : undefined}
 					class="rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(l.href)
 						? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
 						: 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900'}"
 				>
-					{l.label}
+					{#if l.href === '/settings'}
+						<Settings class="h-5 w-5" />
+					{:else}
+						{l.label}
+					{/if}
 				</a>
 			{/each}
 		</nav>
@@ -84,7 +91,7 @@
 					>
 					<button
 						onclick={logout}
-						class="block w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+						class="block w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
 						>Sair</button
 					>
 				</div>
@@ -96,11 +103,17 @@
 		{#each links as l (l.href)}
 			<a
 				href={l.href}
+				aria-label={l.href === '/settings' ? l.label : undefined}
+				title={l.href === '/settings' ? l.label : undefined}
 				class="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium {isActive(l.href)
 					? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
 					: 'text-neutral-600 dark:text-neutral-300'}"
 			>
-				{l.label}
+				{#if l.href === '/settings'}
+					<Settings class="h-5 w-5" />
+				{:else}
+					{l.label}
+				{/if}
 			</a>
 		{/each}
 	</nav>

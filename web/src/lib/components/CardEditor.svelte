@@ -77,7 +77,7 @@
 <Modal title={card ? 'Editar card' : 'Novo card'} {onClose} wide>
 	<form onsubmit={save} class="space-y-4">
 		{#if !card}
-			<AiPromptHelper compact context="card" />
+			<AiPromptHelper context="card" />
 		{/if}
 
 		<div>

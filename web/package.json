@@ -23,6 +23,7 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
+		"@lucide/svelte": "^1.26.0",
 		"chart.js": "^4.5.1",
 		"cropperjs": "^2.1.1",
 		"pocketbase": "^0.27.0",

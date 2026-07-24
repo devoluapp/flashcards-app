@@ -3,12 +3,9 @@
 	// upload de arquivo (NotebookLM é o mais indicado — responde só com base no que
 	// foi anexado, então erra menos), cola este prompt, e recebe de volta um bloco
 	// CSV já no formato que a importação desta tela espera (front,back,tags).
-	let {
-		compact = false,
-		context = 'import'
-	}: { compact?: boolean; context?: 'import' | 'card' } = $props();
+	let { context = 'import' }: { context?: 'import' | 'card' } = $props();
 
-	let expanded = $state(!compact);
+	let expanded = $state(false);
 	let copied = $state(false);
 
 	const PROMPT = `Você é um assistente que transforma material de estudo em flashcards no formato CSV, prontos para importar num app de repetição espaçada (tipo Anki).
@@ -61,7 +58,7 @@ front,back,tags
 			</span>
 			<span>
 				<span class="block text-sm font-bold text-neutral-900 dark:text-neutral-50">Crie flashcards com ajuda de uma IA</span>
-				<span class="block text-xs text-neutral-500">Transforme seu material de estudo em cards prontos pra importar</span>
+				<span class="block text-xs text-neutral-500">Transforme seu material de estudo em cards prontos pra importar. Clique na seta ao lado para ver as orientações</span>
 			</span>
 		</span>
 		<svg
