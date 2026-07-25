@@ -116,16 +116,41 @@ marcar como "Available at Buildtime").
   notificações toast.
 - `src/lib/components/` — `DeckCard`, `CardEditor`, `RichTextEditor` (edita
   `front`/`back`, que são campos tipo `editor` no schema), `ImageCropUploader`
-  (upload com crop/proporção via `cropperjs`, usado em capa de deck e imagens de
-  card), `RatingButtons` (as 4 notas do FSRS: Errei/Difícil/Bom/Fácil),
-  `AiPromptHelper` (só copia um prompt para colar em IA externa — não chama
-  nenhuma API de IA), `Nav`, `Modal`, `HelpTip`, `ToastHost`, `AppFooter`.
+  (upload com crop/proporção via `cropperjs`, usado em avatar, capa de deck e
+  imagens de card — ver "Upload de imagens" abaixo), `RatingButtons` (as 4
+  notas do FSRS: Errei/Difícil/Bom/Fácil), `AiPromptHelper` (só copia um prompt
+  para colar em IA externa — não chama nenhuma API de IA), `Nav`, `Modal`,
+  `HelpTip`, `ToastHost`, `AppFooter`.
 - `src/routes/` — uma rota por tela: `/` (home), `/login`, `/register`,
   `/forgot-password`, `/reset-password`, `/verify-email`, `/decks`,
   `/decks/[id]` (edição de deck + lista de cards), `/study/[deckId]` (sessão de
   revisão, usa `fsrs.ts` para agendar), `/import` (upload Anki/Quizlet/CSV, cria
   `import_jobs`), `/settings` (perfil, tema, fuso horário via combobox,
   `desired_retention`), `/stats` (gráficos com `chart.js`).
+
+### Upload de imagens (avatar, capa de deck, frente/verso de card)
+
+Todo upload de imagem passa por `ImageCropUploader.svelte`, que recorta
+(`cropperjs`) e **recomprime no navegador para WebP** antes de enviar — nunca
+manda o arquivo original. Cada caso de uso chama o componente com
+`aspectRatio`/`maxSide`/`maxBytes` batendo com o limite do campo equivalente no
+PocketBase (`pb_migrations`):
+
+| Uso | Onde | aspectRatio | maxSide | maxBytes | limite do campo |
+|---|---|---|---|---|---|
+| Avatar | `routes/settings/+page.svelte` | 1:1 | 512 | 1.000.000 | `avatar` = 1 MB |
+| Capa de deck | `routes/decks/+page.svelte` | 16:9 | 800 | padrão (2 MB) | `cover_image` = 2 MB |
+| Frente/verso de card | `CardEditor.svelte` | 4:3 (padrão) | 1024 (padrão) | padrão (2 MB) | `front_image`/`back_image` = 2 MB |
+
+Dentro do componente, `confirmCrop()` tenta qualidades WebP decrescentes
+(`QUALITY_STEPS = [0.8, 0.6, 0.4, 0.25]`) até o blob caber em `maxBytes`; se
+mesmo assim não couber, cancela o envio e avisa via toast (pedir pra recortar
+uma área menor) em vez de deixar o PocketBase rejeitar com erro genérico. Em
+qualquer compressão perceptível, mostra um toast informando o tamanho antes/depois
+(transparência pro usuário). **Se adicionar um novo ponto de upload de imagem,
+sempre passar por este componente** (não montar `FormData` com o `File` bruto
+do `<input type="file">") — foi exatamente esse o bug corrigido no avatar (única
+tela que ainda enviava o arquivo original sem recorte/compressão).
 
 ### Fluxo de revisão (FSRS)
 

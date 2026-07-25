@@ -3,8 +3,13 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
 	import HelpTip from '$lib/components/HelpTip.svelte';
+	import ImageCropUploader from '$lib/components/ImageCropUploader.svelte';
 	import { theme, THEMES } from '$lib/stores/theme.svelte';
 	import type { UserRecord } from '$lib/types';
+
+	// Limite do campo "avatar" no PocketBase é 1MB (ver backend/pb_migrations/1721300000_extend_users.js);
+	// margem de segurança abaixo disso pro loop de compressão do ImageCropUploader.
+	const AVATAR_MAX_BYTES = 1_000_000;
 
 	const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
 	// Intl.supportedValuesOf é suportado nos browsers-alvo do app; fallback cobre só o essencial.
@@ -24,8 +29,8 @@
 	let newPasswordConfirm = $state('');
 	let savingPassword = $state(false);
 
-	let avatarInput: HTMLInputElement;
 	let avatarUploading = $state(false);
+	let showAvatarCropper = $state(false);
 
 	const user = $derived(auth.user);
 	const avatarUrl = $derived(user?.avatar ? fileUrl(user, user.avatar, { thumb: '100x100' }) : '');
@@ -70,20 +75,18 @@
 		}
 	}
 
-	async function onAvatarChange(e: Event) {
-		const file = (e.target as HTMLInputElement).files?.[0];
-		if (!file) return;
+	async function onAvatarCropped(blob: Blob) {
 		avatarUploading = true;
 		try {
 			const form = new FormData();
-			form.append('avatar', file);
+			form.append('avatar', blob, 'avatar.webp');
 			await pb.collection('users').update(currentUser()!.id, form);
 			pushToast('Avatar atualizado.', 'success');
+			showAvatarCropper = false;
 		} catch (err) {
 			pushToast(errorMessage(err), 'error');
 		} finally {
 			avatarUploading = false;
-			if (avatarInput) avatarInput.value = '';
 		}
 	}
 </script>
@@ -103,15 +106,25 @@
 					{(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}
 				</span>
 			{/if}
-			<div>
-				<input bind:this={avatarInput} type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange={onAvatarChange} />
-				<button
-					onclick={() => avatarInput.click()}
-					disabled={avatarUploading}
-					class="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
-				>
-					{avatarUploading ? 'Enviando…' : 'Trocar avatar'}
-				</button>
+			<div class="min-w-0 flex-1">
+				{#if showAvatarCropper}
+					<ImageCropUploader aspectRatio={1} maxSide={512} maxBytes={AVATAR_MAX_BYTES} ratioLabel="1:1" onCropped={onAvatarCropped} />
+					<button
+						type="button"
+						onclick={() => (showAvatarCropper = false)}
+						class="mt-1 text-xs font-medium text-neutral-500 hover:underline"
+					>
+						Cancelar
+					</button>
+				{:else}
+					<button
+						onclick={() => (showAvatarCropper = true)}
+						disabled={avatarUploading}
+						class="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+					>
+						{avatarUploading ? 'Enviando…' : 'Trocar avatar'}
+					</button>
+				{/if}
 				<p class="mt-1 text-xs text-neutral-500">{user?.email}</p>
 			</div>
 		</div>

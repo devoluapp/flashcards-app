@@ -1,3 +1,9 @@
+export function formatBytes(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function formatInterval(from: Date, to: Date): string {
 	const minutes = Math.round((to.getTime() - from.getTime()) / 60000);
 	if (minutes < 1) return '<1min';

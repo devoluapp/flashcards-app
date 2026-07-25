@@ -1,18 +1,27 @@
 <script lang="ts">
 	import Cropper from 'cropperjs';
 	import { onDestroy } from 'svelte';
+	import { pushToast } from '$lib/stores/toast.svelte';
+	import { formatBytes } from '$lib/format';
 
 	let {
 		onCropped,
 		aspectRatio = 4 / 3,
 		maxSide = 1024,
+		maxBytes = 2 * 1024 * 1024,
 		ratioLabel
 	}: {
 		onCropped: (blob: Blob) => void;
 		aspectRatio?: number;
 		maxSide?: number;
+		/** Tamanho máximo do arquivo final, em bytes — deve bater com o limite do campo no PocketBase. */
+		maxBytes?: number;
 		ratioLabel?: string;
 	} = $props();
+
+	// Qualidades tentadas em ordem até o resultado caber em maxBytes — cobre o caso de
+	// fotos muito grandes/detalhadas onde a qualidade 0.8 ainda estoura o limite do campo.
+	const QUALITY_STEPS = [0.8, 0.6, 0.4, 0.25];
 
 	const displayRatioLabel = $derived(
 		ratioLabel ?? (Math.abs(aspectRatio - 16 / 9) < 0.01 ? '16:9' : Math.abs(aspectRatio - 4 / 3) < 0.01 ? '4:3' : aspectRatio.toFixed(2))
@@ -24,6 +33,8 @@
 	let previewSrc = $state('');
 	let cropping = $state(false);
 	let busy = $state(false);
+	let busyLabel = $state('Cortando…');
+	let originalSize = 0;
 
 	const TEMPLATE = $derived(`
 		<cropper-canvas background style="width:100%;height:320px">
@@ -53,6 +64,7 @@
 	function onFileChange(e: Event) {
 		const file = (e.target as HTMLInputElement).files?.[0];
 		if (!file) return;
+		originalSize = file.size;
 		if (previewSrc) URL.revokeObjectURL(previewSrc);
 		previewSrc = URL.createObjectURL(file);
 		cropping = true;
@@ -66,21 +78,44 @@
 		}
 	});
 
+	function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+		return new Promise((resolve, reject) =>
+			canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob falhou'))), 'image/webp', quality)
+		);
+	}
+
 	async function confirmCrop() {
 		const selection = cropper?.getCropperSelection();
 		if (!selection) return;
 		busy = true;
+		busyLabel = 'Comprimindo imagem…';
 		try {
 			const width = maxSide;
 			const height = Math.round(maxSide / aspectRatio);
 			const canvas = await selection.$toCanvas({ width, height });
-			const blob: Blob = await new Promise((resolve, reject) =>
-				canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob falhou'))), 'image/webp', 0.8)
-			);
+
+			let blob = await canvasToBlob(canvas, QUALITY_STEPS[0]);
+			for (let i = 1; i < QUALITY_STEPS.length && blob.size > maxBytes; i++) {
+				blob = await canvasToBlob(canvas, QUALITY_STEPS[i]);
+			}
+
+			if (blob.size > maxBytes) {
+				pushToast(
+					`A imagem ainda ficou grande demais mesmo comprimida (${formatBytes(blob.size)}). Tente recortar uma área menor.`,
+					'error'
+				);
+				return;
+			}
+
+			if (originalSize > blob.size * 1.1) {
+				pushToast(`Imagem comprimida de ${formatBytes(originalSize)} para ${formatBytes(blob.size)}.`, 'success');
+			}
+
 			onCropped(blob);
 			cancelCrop();
 		} finally {
 			busy = false;
+			busyLabel = 'Cortando…';
 		}
 	}
 
@@ -116,7 +151,7 @@
 				onclick={confirmCrop}
 				disabled={busy}
 				class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-				>{busy ? 'Cortando…' : `Usar recorte (${displayRatioLabel})`}</button
+				>{busy ? busyLabel : `Usar recorte (${displayRatioLabel})`}</button
 			>
 		</div>
 	</div>
