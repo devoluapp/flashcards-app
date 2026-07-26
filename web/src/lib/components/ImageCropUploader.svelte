@@ -3,6 +3,7 @@
 	import { onDestroy } from 'svelte';
 	import { pushToast } from '$lib/stores/toast.svelte';
 	import { formatBytes } from '$lib/format';
+	import { canvasToWebpUnderLimit, ImageTooLargeError } from '$lib/image-compress';
 
 	let {
 		onCropped,
@@ -18,10 +19,6 @@
 		maxBytes?: number;
 		ratioLabel?: string;
 	} = $props();
-
-	// Qualidades tentadas em ordem até o resultado caber em maxBytes — cobre o caso de
-	// fotos muito grandes/detalhadas onde a qualidade 0.8 ainda estoura o limite do campo.
-	const QUALITY_STEPS = [0.8, 0.6, 0.4, 0.25];
 
 	const displayRatioLabel = $derived(
 		ratioLabel ?? (Math.abs(aspectRatio - 16 / 9) < 0.01 ? '16:9' : Math.abs(aspectRatio - 4 / 3) < 0.01 ? '4:3' : aspectRatio.toFixed(2))
@@ -78,12 +75,6 @@
 		}
 	});
 
-	function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
-		return new Promise((resolve, reject) =>
-			canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob falhou'))), 'image/webp', quality)
-		);
-	}
-
 	async function confirmCrop() {
 		const selection = cropper?.getCropperSelection();
 		if (!selection) return;
@@ -94,17 +85,18 @@
 			const height = Math.round(maxSide / aspectRatio);
 			const canvas = await selection.$toCanvas({ width, height });
 
-			let blob = await canvasToBlob(canvas, QUALITY_STEPS[0]);
-			for (let i = 1; i < QUALITY_STEPS.length && blob.size > maxBytes; i++) {
-				blob = await canvasToBlob(canvas, QUALITY_STEPS[i]);
-			}
-
-			if (blob.size > maxBytes) {
-				pushToast(
-					`A imagem ainda ficou grande demais mesmo comprimida (${formatBytes(blob.size)}). Tente recortar uma área menor.`,
-					'error'
-				);
-				return;
+			let blob: Blob;
+			try {
+				blob = await canvasToWebpUnderLimit(canvas, maxBytes);
+			} catch (err) {
+				if (err instanceof ImageTooLargeError) {
+					pushToast(
+						`A imagem ainda ficou grande demais mesmo comprimida (${formatBytes(err.finalSize)}). Tente recortar uma área menor.`,
+						'error'
+					);
+					return;
+				}
+				throw err;
 			}
 
 			if (originalSize > blob.size * 1.1) {

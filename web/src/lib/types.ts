@@ -24,6 +24,8 @@ export interface UserRecord extends BaseRecord {
 	storage_used: number;
 	settings: Record<string, unknown> | null;
 	verified: boolean;
+	/** Admin do app (tela /admin/import). Só editável por superuser — ver hook em pb_hooks. */
+	is_admin: boolean;
 }
 
 export interface DeckRecord extends BaseRecord {

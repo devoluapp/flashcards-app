@@ -3,12 +3,12 @@
 	// upload de arquivo (NotebookLM é o mais indicado — responde só com base no que
 	// foi anexado, então erra menos), cola este prompt, e recebe de volta um bloco
 	// CSV já no formato que a importação desta tela espera (front,back,tags).
-	let { context = 'import' }: { context?: 'import' | 'card' } = $props();
+	let { context = 'import' }: { context?: 'import' | 'card' | 'admin' } = $props();
 
 	let expanded = $state(false);
 	let copied = $state(false);
 
-	const PROMPT = `Você é um assistente que transforma material de estudo em flashcards no formato CSV, prontos para importar num app de repetição espaçada (tipo Anki).
+	const BASE_PROMPT = `Você é um assistente que transforma material de estudo em flashcards no formato CSV, prontos para importar num app de repetição espaçada (tipo Anki).
 
 MATERIAL: use o(s) arquivo(s) que anexei nesta conversa como única fonte de verdade — não invente nada que não esteja no material.
 
@@ -28,6 +28,34 @@ EXEMPLO do formato esperado:
 front,back,tags
 "Qual é a capital da França?","Paris",geografia
 "O que é obrigação tributária?","É o vínculo jurídico que obriga o contribuinte a pagar tributo ou cumprir dever acessório ao Fisco","direito;tributário"`;
+
+	// Variante da tela admin: mesmas regras + duas colunas de imagem mnemônica —
+	// "image_search" alimenta a busca em bancos de imagens (Pixabay etc.) e
+	// "image_prompt" alimenta a geração por IA (OpenAI). Cabeçalho precisa bater
+	// com o que o parser da tela /admin/import espera.
+	const ADMIN_PROMPT = `Você é um assistente que transforma material de estudo em flashcards no formato CSV, prontos para importar num app de repetição espaçada (tipo Anki), incluindo sugestões de imagem mnemônica para cada card.
+
+MATERIAL: use o(s) arquivo(s) que anexei nesta conversa como única fonte de verdade — não invente nada que não esteja no material.
+
+TAREFA: gere [QUANTIDADE] flashcards sobre [TEMA OU ASSUNTO], cobrindo os pontos mais importantes do material.
+
+REGRAS DO FORMATO DE SAÍDA (siga à risca):
+- Gere um bloco de texto CSV (separado por vírgula) com o cabeçalho exatamente: front,back,tags,image_search,image_prompt
+- Uma linha por card.
+- "front" = a pergunta, termo ou conceito. "back" = a resposta, direta e completa.
+- Cada card deve cobrir UM ÚNICO fato ou conceito (evite perguntas compostas).
+- Se o texto tiver vírgula, coloque o campo inteiro entre aspas duplas.
+- Não use Markdown, HTML, negrito ou itálico — apenas texto simples.
+- "tags" é opcional; se usar mais de uma, separe por ponto e vírgula (ex.: "direito;tributário").
+- "image_search" = 2 a 5 palavras EM INGLÊS para buscar em banco de imagens: termos concretos e visuais (objetos, cenas, lugares), sem verbos nem conceitos abstratos. Ex.: "eiffel tower paris sunset".
+- "image_prompt" = prompt EM INGLÊS, detalhado (1 a 3 frases), para um gerador de imagens criar uma IMAGEM MNEMÔNICA do conceito do card: use exagero, associação visual absurda ou marcante, uma única cena vívida e memorável fortemente ligada à resposta. A imagem não deve conter texto, letras nem números. Ex.: "A giant golden Eiffel Tower wearing a French beret, hugging a map of France, exaggerated cartoon style, vivid colors, no text".
+- Não escreva nada antes ou depois do bloco CSV — sem explicações, sem marcação de código.
+
+EXEMPLO do formato esperado:
+front,back,tags,image_search,image_prompt
+"Qual é a capital da França?","Paris",geografia,"eiffel tower paris","A giant golden Eiffel Tower wearing a French beret and hugging a glowing map of France, exaggerated cartoon style, vivid colors, single memorable scene, no text"`;
+
+	const PROMPT = $derived(context === 'admin' ? ADMIN_PROMPT : BASE_PROMPT);
 
 	async function copyPrompt() {
 		try {
@@ -103,6 +131,9 @@ front,back,tags
 			<p class="text-xs text-neutral-500">
 				{#if context === 'import'}
 					A IA vai devolver um bloco de texto CSV — cole no campo abaixo (ou salve como arquivo .csv e envie).
+				{:else if context === 'admin'}
+					A IA vai devolver um CSV com as colunas <code class="font-mono">front,back,tags,image_search,image_prompt</code> —
+					cole no campo abaixo. As duas últimas colunas alimentam a busca e a geração de imagens desta tela.
 				{:else}
 					A IA vai devolver várias linhas no formato <code class="font-mono">front,back,tags</code>. Pra um card só,
 					copie uma linha e cole a pergunta em "Frente" e a resposta em "Verso". Pra criar vários de uma vez, use a

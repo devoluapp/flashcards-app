@@ -56,7 +56,7 @@ obrigação de sincronia — ao mudar uma migration, atualize `types.ts` junto).
 
 | Coleção | Campos próprios (além de id/created/updated) | Regra de acesso |
 |---|---|---|
-| `users` (auth, builtin) | `plan` (`free`\|`pro`), `desired_retention` (0.7–0.99), `fsrs_params` (json, pesos custom do FSRS), `timezone`, `storage_used` (bytes), `settings` (json livre), `avatar` (file) | `authRule = "verified = true"` — só loga quem confirmou e-mail |
+| `users` (auth, builtin) | `plan` (`free`\|`pro`), `desired_retention` (0.7–0.99), `fsrs_params` (json, pesos custom do FSRS), `timezone`, `storage_used` (bytes), `settings` (json livre), `avatar` (file), `is_admin` (bool, dá acesso à tela `/admin/import`; só editável via painel PB — ver hook 6) | `authRule = "verified = true"` — só loga quem confirmou e-mail |
 | `decks` | `user` (rel), `name`, `description`, `color`, `cover_image` (file), `parent` (self-rel, subdecks), `is_public`, `deleted` (soft delete) | list/view/update/delete: dono **e** `verified = true`; create: só autenticado (dono é setado pelo hook, não pela rule) |
 | `cards` | `user`, `deck` (rel), `front`/`back` (rich text/"editor"), `front_image`/`back_image`/`media` (files), `tags` (json), campos de estado FSRS (`state`, `due`, `stability`, `difficulty`, `elapsed_days`, `scheduled_days`, `reps`, `lapses`, `last_review`), `suspended`, `source`, `deleted` | mesma regra de `decks` |
 | `review_logs` | `user`, `card` (rel), `rating` (1–4), snapshot do estado FSRS no momento da review, `duration_ms` | **imutável**: `updateRule`/`deleteRule = null`; só create/list/view do próprio dono |
@@ -78,11 +78,18 @@ obrigação de sincronia — ao mudar uma migration, atualize `types.ts` junto).
    `reps/lapses/stability/difficulty: 0`).
 5. `import_jobs` sempre nasce com `status: "pending"` se não vier setado — é o
    único lugar que define esse default; o worker só varre por esse status.
+6. `users.is_admin` é revertido ao valor original em todo `onRecordUpdateRequest`
+   de não-superuser — sem isso qualquer usuário se auto-promoveria via PATCH
+   (a updateRule de `users` permite o dono editar o próprio registro). Promover
+   admin = marcar o campo no painel do PB. O gating da tela `/admin/import` no
+   front é só UX; a garantia real é este hook (a tela não faz nada privilegiado
+   no servidor — só operações que o dono já pode nos próprios registros).
 
 **Não há integração de IA no backend nem no import-worker.** O que existe é um
 prompt pronto (ver seção Frontend) para o usuário colar em uma ferramenta externa
 (NotebookLM etc.) e depois importar o CSV gerado — nenhuma chamada de LLM roda
-neste código.
+neste código. (A tela admin do front chama OpenAI/bancos de imagem **direto do
+navegador**, com chaves do próprio admin em localStorage — o backend não participa.)
 
 ## Frontend web (`web/`)
 
@@ -119,14 +126,50 @@ marcar como "Available at Buildtime").
   (upload com crop/proporção via `cropperjs`, usado em avatar, capa de deck e
   imagens de card — ver "Upload de imagens" abaixo), `RatingButtons` (as 4
   notas do FSRS: Errei/Difícil/Bom/Fácil), `AiPromptHelper` (só copia um prompt
-  para colar em IA externa — não chama nenhuma API de IA), `Nav`, `Modal`,
-  `HelpTip`, `ToastHost`, `AppFooter`.
+  para colar em IA externa — não chama nenhuma API de IA; `context` `'import'` |
+  `'card'` | `'admin'`, sendo `admin` a variante com colunas
+  `image_search`/`image_prompt`), `Nav` (link "Admin" condicional a
+  `auth.user?.is_admin`), `Modal`, `HelpTip`, `ToastHost`, `AppFooter`.
+- `src/lib/components/admin/` — `ApiKeysPanel` (chaves Pixabay/Pexels/Unsplash/
+  OpenAI + modelo, persistidas via `stores/adminKeys.svelte.ts` em localStorage)
+  e `CardImagePicker` (grade de 3 imagens buscadas + slot da gerada, seleção,
+  botões anteriores/próximas/Gerar, salva `back_image`).
+- `src/lib/image-search/` — provedores de busca de imagem com contrato comum
+  (`types.ts`), um arquivo por provedor e `session.svelte.ts`
+  (`ImageSearchSession`: cadeia Pixabay → Pexels → Openverse → Unsplash filtrada
+  por chave disponível, paginação de 3 em 3 com cache das páginas; Openverse não
+  exige chave e usa **só o endpoint de thumbnail** — o `url` direto não garante
+  CORS). `src/lib/image-gen/openai.ts` — `generateImage()` chama
+  `POST /v1/images/generations` da OpenAI direto do browser (gpt-image-1 sem
+  `response_format`; dall-e-3/2 com `b64_json`).
+- `src/lib/image-compress.ts` — util compartilhado de compressão WebP:
+  `canvasToWebpUnderLimit` (loop de qualidades, usado pelo `ImageCropUploader`)
+  e `blobToWebpResized` (redimensiona sem crop, usado pela tela admin).
 - `src/routes/` — uma rota por tela: `/` (home), `/login`, `/register`,
   `/forgot-password`, `/reset-password`, `/verify-email`, `/decks`,
   `/decks/[id]` (edição de deck + lista de cards), `/study/[deckId]` (sessão de
   revisão, usa `fsrs.ts` para agendar), `/import` (upload Anki/Quizlet/CSV, cria
-  `import_jobs`), `/settings` (perfil, tema, fuso horário via combobox,
-  `desired_retention`), `/stats` (gráficos com `chart.js`).
+  `import_jobs`), `/admin/import` (ver "Tela admin" abaixo), `/settings`
+  (perfil, tema, fuso horário via combobox, `desired_retention`), `/stats`
+  (gráficos com `chart.js`).
+
+### Tela admin de importação com imagens (`/admin/import`)
+
+Visível/acessível só para `users.is_admin` (link na Nav + redirect no `onMount`
+da página — **não** usar `goto()` dentro de `$effect`: rastreia estado interno do
+router e entra em loop `effect_update_depth_exceeded`). Fluxo em 2 passos, tudo
+client-side, sem `import_jobs`/worker:
+
+1. CSV (arquivo ou texto colado) com cabeçalho
+   `front,back,tags,image_search,image_prompt` (3 últimas opcionais por linha),
+   parseado com `papaparse` no browser; cria os `cards` (texto) na hora via
+   `pb.collection('cards').create` com `source: 'admin-import'`.
+2. Edição em lote paginada (1/5/10 por página): cada card visível busca 3 imagens
+   (`ImageSearchSession`, lazy — só a página visível, pra poupar rate limit) e/ou
+   gera via OpenAI; a escolhida é baixada, comprimida (`blobToWebpResized`,
+   1024px/2MB) e salva em `back_image`. Estado do lote vive só em memória
+   (refresh perde o pareamento CSV↔card; `beforeunload` avisa) — os cards de
+   texto já estão salvos no PB de qualquer forma.
 
 ### Upload de imagens (avatar, capa de deck, frente/verso de card)
 
@@ -142,15 +185,18 @@ PocketBase (`pb_migrations`):
 | Capa de deck | `routes/decks/+page.svelte` | 16:9 | 800 | padrão (2 MB) | `cover_image` = 2 MB |
 | Frente/verso de card | `CardEditor.svelte` | 4:3 (padrão) | 1024 (padrão) | padrão (2 MB) | `front_image`/`back_image` = 2 MB |
 
-Dentro do componente, `confirmCrop()` tenta qualidades WebP decrescentes
-(`QUALITY_STEPS = [0.8, 0.6, 0.4, 0.25]`) até o blob caber em `maxBytes`; se
-mesmo assim não couber, cancela o envio e avisa via toast (pedir pra recortar
-uma área menor) em vez de deixar o PocketBase rejeitar com erro genérico. Em
-qualquer compressão perceptível, mostra um toast informando o tamanho antes/depois
-(transparência pro usuário). **Se adicionar um novo ponto de upload de imagem,
-sempre passar por este componente** (não montar `FormData` com o `File` bruto
-do `<input type="file">") — foi exatamente esse o bug corrigido no avatar (única
-tela que ainda enviava o arquivo original sem recorte/compressão).
+A compressão em si vive em `src/lib/image-compress.ts`
+(`canvasToWebpUnderLimit`: tenta qualidades WebP decrescentes
+`QUALITY_STEPS = [0.8, 0.6, 0.4, 0.25]` até caber em `maxBytes`, senão lança
+`ImageTooLargeError`); o `confirmCrop()` do componente usa esse util e avisa via
+toast (pedir pra recortar uma área menor) em vez de deixar o PocketBase rejeitar
+com erro genérico. Em qualquer compressão perceptível, mostra um toast informando
+o tamanho antes/depois (transparência pro usuário). **Se adicionar um novo ponto
+de upload de imagem, nunca enviar o `File`/blob bruto**: fluxo interativo passa
+pelo `ImageCropUploader`; fluxo automático (sem crop, ex.: tela admin baixando
+imagem da web) passa por `blobToWebpResized` do mesmo util — foi exatamente esse
+o bug corrigido no avatar (única tela que ainda enviava o arquivo original sem
+recorte/compressão).
 
 ### Fluxo de revisão (FSRS)
 

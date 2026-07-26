@@ -56,3 +56,15 @@ onRecordCreateRequest((e) => {
   if (!e.record.get("status")) e.record.set("status", "pending");
   e.next();
 }, "import_jobs");
+
+// 6) "is_admin" só pode ser alterado por superuser (painel do PB). A updateRule de
+// users permite o dono editar o próprio registro, então sem isto qualquer usuário
+// se auto-promoveria via PATCH { is_admin: true }. Aqui o valor enviado é sempre
+// revertido ao original — o gating da tela admin no front é só UX; esta é a
+// garantia real de que o flag não se espalha.
+onRecordUpdateRequest((e) => {
+  if (!e.hasSuperuserAuth()) {
+    e.record.set("is_admin", e.record.original().get("is_admin"));
+  }
+  e.next();
+}, "users");

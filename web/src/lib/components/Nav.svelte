@@ -5,12 +5,18 @@
 	import { fileUrl } from '$lib/pb';
 	import { Settings } from '@lucide/svelte';
 
-	const links = [
+	const BASE_LINKS = [
 		{ href: '/decks', label: 'Decks', icon: 'layers' },
 		{ href: '/import', label: 'Importar', icon: 'upload' },
 		{ href: '/stats', label: 'Estatísticas', icon: 'chart' },
 		{ href: '/settings', label: 'Config', icon: 'gear' }
 	];
+	// Link admin só aparece pra quem tem is_admin (gating de verdade é no backend/hook).
+	let links = $derived(
+		auth.user?.is_admin
+			? [...BASE_LINKS.slice(0, 3), { href: '/admin/import', label: 'Admin', icon: 'shield' }, BASE_LINKS[3]]
+			: BASE_LINKS
+	);
 
 	function isActive(href: string) {
 		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
