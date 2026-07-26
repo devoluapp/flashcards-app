@@ -9,41 +9,75 @@ export const OPENAI_MODELS: { value: OpenAiImageModel; label: string }[] = [
 	{ value: 'dall-e-2', label: 'DALL·E 2 (mais barato)' }
 ];
 
-export async function generateImage(prompt: string, model: OpenAiImageModel, apiKey: string): Promise<Blob> {
-	const body: Record<string, unknown> = { model, prompt, n: 1 };
-	if (model === 'gpt-image-1') {
-		// já responde b64_json; rejeita o parâmetro response_format
-		body.size = '1024x1024';
-		body.quality = 'medium';
-	} else {
-		body.size = model === 'dall-e-3' ? '1024x1024' : '512x512';
-		body.response_format = 'b64_json';
-	}
+interface GenerationResponse {
+	data: { b64_json?: string; url?: string }[];
+}
 
-	const res = await fetch('https://api.openai.com/v1/images/generations', {
+async function requestGeneration(body: Record<string, unknown>, apiKey: string): Promise<Response> {
+	return fetch('https://api.openai.com/v1/images/generations', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
 		body: JSON.stringify(body)
 	});
+}
 
-	if (!res.ok) {
-		let detail = '';
-		try {
-			detail = (await res.json())?.error?.message ?? '';
-		} catch {
-			/* corpo não-JSON */
-		}
-		if (res.status === 401) throw new Error('Chave da OpenAI inválida.');
-		if (res.status === 429) throw new Error('Limite/cota da OpenAI atingido. ' + detail);
-		throw new Error(detail || `OpenAI HTTP ${res.status}`);
+async function errorDetail(res: Response): Promise<string> {
+	try {
+		return (await res.json())?.error?.message ?? '';
+	} catch {
+		return '';
+	}
+}
+
+export async function generateImage(prompt: string, model: OpenAiImageModel, apiKey: string): Promise<Blob> {
+	const body: Record<string, unknown> = { model, prompt, n: 1 };
+	if (model === 'gpt-image-1') {
+		body.size = '1024x1024';
+		body.quality = 'medium';
+	} else {
+		body.size = model === 'dall-e-3' ? '1024x1024' : '512x512';
+		// Pedimos b64_json (evita depender de CORS na URL da imagem), mas alguns
+		// modelos/contas passaram a rejeitar o parâmetro — nesse caso repetimos sem ele.
+		body.response_format = 'b64_json';
 	}
 
-	const json: { data: { b64_json?: string }[] } = await res.json();
-	const b64 = json.data?.[0]?.b64_json;
-	if (!b64) throw new Error('Resposta da OpenAI sem imagem.');
+	let res = await requestGeneration(body, apiKey);
 
-	const bin = atob(b64);
-	const bytes = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-	return new Blob([bytes], { type: 'image/png' });
+	if (!res.ok) {
+		let detail = await errorDetail(res);
+		if (res.status === 400 && 'response_format' in body && detail.toLowerCase().includes('response_format')) {
+			delete body.response_format;
+			res = await requestGeneration(body, apiKey);
+			if (!res.ok) detail = await errorDetail(res);
+		}
+		if (!res.ok) {
+			if (res.status === 401) throw new Error('Chave da OpenAI inválida.');
+			if (res.status === 429) throw new Error('Limite/cota da OpenAI atingido. ' + detail);
+			throw new Error(detail || `OpenAI HTTP ${res.status}`);
+		}
+	}
+
+	const json: GenerationResponse = await res.json();
+	const first = json.data?.[0];
+
+	if (first?.b64_json) {
+		const bin = atob(first.b64_json);
+		const bytes = new Uint8Array(bin.length);
+		for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+		return new Blob([bytes], { type: 'image/png' });
+	}
+
+	if (first?.url) {
+		// Fallback quando a API devolve URL temporária em vez de base64.
+		let imgRes: Response;
+		try {
+			imgRes = await fetch(first.url);
+		} catch {
+			throw new Error('A OpenAI devolveu uma URL que o navegador não conseguiu baixar (CORS). Tente outro modelo.');
+		}
+		if (!imgRes.ok) throw new Error(`Download da imagem gerada falhou (HTTP ${imgRes.status}).`);
+		return imgRes.blob();
+	}
+
+	throw new Error('Resposta da OpenAI sem imagem.');
 }
