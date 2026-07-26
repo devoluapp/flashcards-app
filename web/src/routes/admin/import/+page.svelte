@@ -311,51 +311,57 @@
 			</button>
 		</form>
 	{:else}
+		{#snippet pager(idSuffix: string)}
+			<div class="flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+				<p class="text-sm">
+					<strong>{savedCount}</strong> de <strong>{items.length}</strong> card(s) com imagem
+				</p>
+				<div class="ml-auto flex items-center gap-2">
+					<label for="page-size-{idSuffix}" class="text-xs text-neutral-500">Por página:</label>
+					<select
+						id="page-size-{idSuffix}"
+						value={pageSize}
+						onchange={(e) => setPageSize(Number((e.target as HTMLSelectElement).value))}
+						class="rounded-lg border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+					>
+						{#each [1, 5, 10] as n (n)}
+							<option value={n}>{n}</option>
+						{/each}
+					</select>
+					<button
+						type="button"
+						onclick={() => (batchPage = Math.max(0, batchPage - 1))}
+						disabled={batchPage === 0}
+						class="rounded-lg border border-neutral-300 p-1.5 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
+						aria-label="Página anterior"
+					>
+						<ChevronLeft class="h-4 w-4" />
+					</button>
+					<span class="text-xs text-neutral-500">Página {batchPage + 1} de {totalPages}</span>
+					<button
+						type="button"
+						onclick={() => (batchPage = Math.min(totalPages - 1, batchPage + 1))}
+						disabled={batchPage >= totalPages - 1}
+						class="rounded-lg border border-neutral-300 p-1.5 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
+						aria-label="Próxima página"
+					>
+						<ChevronRight class="h-4 w-4" />
+					</button>
+				</div>
+			</div>
+		{/snippet}
+
 		<div class="mb-4"><ApiKeysPanel /></div>
 
-		<div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-			<p class="text-sm">
-				<strong>{savedCount}</strong> de <strong>{items.length}</strong> card(s) com imagem
-			</p>
-			<div class="ml-auto flex items-center gap-2">
-				<label for="page-size" class="text-xs text-neutral-500">Por página:</label>
-				<select
-					id="page-size"
-					value={pageSize}
-					onchange={(e) => setPageSize(Number((e.target as HTMLSelectElement).value))}
-					class="rounded-lg border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
-				>
-					{#each [1, 5, 10] as n (n)}
-						<option value={n}>{n}</option>
-					{/each}
-				</select>
-				<button
-					type="button"
-					onclick={() => (batchPage = Math.max(0, batchPage - 1))}
-					disabled={batchPage === 0}
-					class="rounded-lg border border-neutral-300 p-1.5 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
-					aria-label="Página anterior"
-				>
-					<ChevronLeft class="h-4 w-4" />
-				</button>
-				<span class="text-xs text-neutral-500">Página {batchPage + 1} de {totalPages}</span>
-				<button
-					type="button"
-					onclick={() => (batchPage = Math.min(totalPages - 1, batchPage + 1))}
-					disabled={batchPage >= totalPages - 1}
-					class="rounded-lg border border-neutral-300 p-1.5 hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
-					aria-label="Próxima página"
-				>
-					<ChevronRight class="h-4 w-4" />
-				</button>
-			</div>
-		</div>
+		<div class="mb-4">{@render pager('top')}</div>
 
 		<div class="space-y-4">
 			{#each visibleItems as item (item.record.id)}
 				<CardImagePicker {item} />
 			{/each}
 		</div>
+
+		<div class="mt-4">{@render pager('bottom')}</div>
 
 		<div class="mt-6 flex justify-end">
 			<a

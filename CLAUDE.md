@@ -130,7 +130,12 @@ marcar como "Available at Buildtime").
   `'card'` | `'admin'`, sendo `admin` a variante com colunas
   `image_search`/`image_prompt`), `Nav` (para `is_admin`, a aba "Importar" vira
   "Importar (Admin)" apontando pra `/admin/import` — admin não vê a tela comum
-  de importação), `Modal`, `HelpTip`, `ToastHost`, `AppFooter`.
+  de importação), `DrawingEditor` (desenho à mão livre via `signature_pad`:
+  overlay próprio — não usa `Modal`, pra poder abrir por cima do CardEditor —
+  com duas camadas de canvas: fundo branco + imagem opcional embaixo, traços em
+  cima; paleta de cores, 3 espessuras, desfazer/limpar; exporta composto em WebP
+  via `blobToWebpResized`; disponível pra qualquer usuário no CardEditor e pro
+  admin no CardImagePicker), `Modal`, `HelpTip`, `ToastHost`, `AppFooter`.
 - `src/lib/components/admin/` — `ApiKeysPanel` (chaves Pixabay/Pexels/Unsplash/
   OpenAI + modelo, persistidas via `stores/adminKeys.svelte.ts` em localStorage)
   e `CardImagePicker` (grade de 3 imagens buscadas + slot da gerada, seleção,
@@ -171,10 +176,13 @@ client-side, sem `import_jobs`/worker:
    gera via OpenAI; `image_search`/`image_prompt` são editáveis no
    `CardImagePicker` (persistem no card via update; editar a busca recomeça a
    sessão com o novo termo); a imagem escolhida é baixada, comprimida
-   (`blobToWebpResized`, 1024px/2MB) e salva em `back_image`. O `ApiKeysPanel`
-   (chaves + modelo OpenAI) aparece nos dois passos. As sessões de busca vivem
-   só em memória (`beforeunload` avisa se houver card sem imagem) — cards de
-   texto e metadados já estão salvos no PB de qualquer forma.
+   (`blobToWebpResized`, 1024px/2MB) e salva em `back_image`. Botão "Desenhar"
+   por card abre o `DrawingEditor` (em branco ou por cima da imagem
+   selecionada/salva) e grava o desenho direto no verso. O `ApiKeysPanel`
+   (chaves + modelo OpenAI) aparece nos dois passos, e a barra de paginação é
+   renderizada no topo E no rodapé da lista (snippet `pager`). As sessões de
+   busca vivem só em memória (`beforeunload` avisa se houver card sem imagem) —
+   cards de texto e metadados já estão salvos no PB de qualquer forma.
 
 A edição é **reentrável**: `/admin/import?deck=<id>` pula o formulário e carrega
 os cards do deck direto no passo 2 (entrada pelo botão "Imagens (admin)" na tela

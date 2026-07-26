@@ -8,7 +8,8 @@
 	import { generateImage } from '$lib/image-gen/openai';
 	import { blobToWebpResized, ImageTooLargeError } from '$lib/image-compress';
 	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
-	import { CheckCircle2, ChevronLeft, ChevronRight, Sparkles, ImageOff, LoaderCircle } from '@lucide/svelte';
+	import DrawingEditor from '$lib/components/DrawingEditor.svelte';
+	import { CheckCircle2, ChevronLeft, ChevronRight, Sparkles, ImageOff, LoaderCircle, PenLine } from '@lucide/svelte';
 
 	let { item }: { item: AdminCardState } = $props();
 
@@ -102,6 +103,14 @@
 		}
 	}
 
+	async function uploadBackImage(webp: Blob) {
+		const form = new FormData();
+		form.append('back_image', webp, 'back.webp');
+		item.record = await pb.collection('cards').update<CardRecord>(item.record.id, form);
+		item.saved = true;
+		pushToast('Imagem salva no verso do card.', 'success');
+	}
+
 	async function saveSelected() {
 		if (!item.selected) return;
 		item.saving = true;
@@ -116,12 +125,7 @@
 				raw = await res.blob();
 			}
 
-			const webp = await blobToWebpResized(raw, { maxSide: 1024, maxBytes: 2 * 1024 * 1024 });
-			const form = new FormData();
-			form.append('back_image', webp, 'back.webp');
-			item.record = await pb.collection('cards').update<CardRecord>(item.record.id, form);
-			item.saved = true;
-			pushToast('Imagem salva no verso do card.', 'success');
+			await uploadBackImage(await blobToWebpResized(raw, { maxSide: 1024, maxBytes: 2 * 1024 * 1024 }));
 		} catch (err) {
 			if (err instanceof ImageTooLargeError) {
 				pushToast('A imagem ficou grande demais mesmo comprimida. Tente outra.', 'error');
@@ -131,6 +135,28 @@
 			} else {
 				pushToast(errorMessage(err), 'error');
 			}
+		} finally {
+			item.saving = false;
+		}
+	}
+
+	// Editor de desenho: abre em branco ou por cima da imagem selecionada/salva;
+	// o resultado (já WebP <=2MB) vai direto pro back_image do card.
+	let drawing = $state(false);
+	const drawingBackground = $derived.by((): Blob | string | null => {
+		if (item.selected?.kind === 'search') return item.selected.result.fullUrl;
+		if (item.selected?.kind === 'generated' && item.generated) return item.generated.blob;
+		if (item.record.back_image) return fileUrl(item.record, item.record.back_image);
+		return null;
+	});
+
+	async function onDrawn(webp: Blob) {
+		drawing = false;
+		item.saving = true;
+		try {
+			await uploadBackImage(webp);
+		} catch (err) {
+			pushToast(errorMessage(err), 'error');
 		} finally {
 			item.saving = false;
 		}
@@ -185,7 +211,7 @@
 
 	{#if !item.imageSearch && !item.imagePrompt}
 		<p class="rounded-lg bg-neutral-50 p-3 text-sm text-neutral-500 dark:bg-neutral-950">
-			Preencha a busca e/ou o prompt acima para habilitar as imagens deste card.
+			Preencha a busca e/ou o prompt acima para habilitar busca e geração — ou use "Desenhar".
 		</p>
 	{:else}
 		<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -252,43 +278,56 @@
 				</div>
 			{/if}
 		</div>
-
-		<div class="mt-3 flex flex-wrap items-center gap-2">
-			<button
-				type="button"
-				onclick={() => item.session?.prev()}
-				disabled={!item.session?.canPrev || item.session?.loading}
-				class="inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
-			>
-				<ChevronLeft class="h-3.5 w-3.5" /> Anteriores
-			</button>
-			<button
-				type="button"
-				onclick={() => item.session?.next()}
-				disabled={!item.session?.canNext || item.session?.loading}
-				class="inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
-			>
-				Próximas <ChevronRight class="h-3.5 w-3.5" />
-			</button>
-			<button
-				type="button"
-				onclick={generate}
-				disabled={item.generating || !genPrompt}
-				class="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-40 dark:border-brand-800 dark:text-brand-300 dark:hover:bg-brand-900/30"
-				title="Gera uma imagem com a OpenAI a partir do prompt de geração (pago por imagem)"
-			>
-				<Sparkles class="h-3.5 w-3.5" />
-				{item.generating ? 'Gerando…' : promptDirty ? 'Salvar e gerar' : item.generated ? 'Regerar' : 'Gerar'}
-			</button>
-
-			<button
-				type="button"
-				onclick={saveSelected}
-				disabled={!item.selected || item.saving}
-				class="ml-auto rounded-lg bg-brand-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-			>
-				{item.saving ? 'Salvando…' : 'Usar como imagem do verso'}
-			</button>
-		</div>
 	{/if}
+
+	<div class="mt-3 flex flex-wrap items-center gap-2">
+		<button
+			type="button"
+			onclick={() => item.session?.prev()}
+			disabled={!item.session?.canPrev || item.session?.loading}
+			class="inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
+		>
+			<ChevronLeft class="h-3.5 w-3.5" /> Anteriores
+		</button>
+		<button
+			type="button"
+			onclick={() => item.session?.next()}
+			disabled={!item.session?.canNext || item.session?.loading}
+			class="inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
+		>
+			Próximas <ChevronRight class="h-3.5 w-3.5" />
+		</button>
+		<button
+			type="button"
+			onclick={generate}
+			disabled={item.generating || !genPrompt}
+			class="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-40 dark:border-brand-800 dark:text-brand-300 dark:hover:bg-brand-900/30"
+			title="Gera uma imagem com a OpenAI a partir do prompt de geração (pago por imagem)"
+		>
+			<Sparkles class="h-3.5 w-3.5" />
+			{item.generating ? 'Gerando…' : promptDirty ? 'Salvar e gerar' : item.generated ? 'Regerar' : 'Gerar'}
+		</button>
+		<button
+			type="button"
+			onclick={() => (drawing = true)}
+			disabled={item.saving}
+			class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
+			title="Desenhe à mão livre — em branco ou por cima da imagem selecionada/salva; salva direto no verso"
+		>
+			<PenLine class="h-3.5 w-3.5" /> Desenhar
+		</button>
+
+		<button
+			type="button"
+			onclick={saveSelected}
+			disabled={!item.selected || item.saving}
+			class="ml-auto rounded-lg bg-brand-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+		>
+			{item.saving ? 'Salvando…' : 'Usar como imagem do verso'}
+		</button>
+	</div>
 </div>
+
+{#if drawing}
+	<DrawingEditor background={drawingBackground} onDone={onDrawn} onClose={() => (drawing = false)} />
+{/if}

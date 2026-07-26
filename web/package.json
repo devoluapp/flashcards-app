@@ -29,6 +29,7 @@
 		"cropperjs": "^2.1.1",
 		"papaparse": "^5.5.4",
 		"pocketbase": "^0.27.0",
+		"signature_pad": "^5.1.3",
 		"ts-fsrs": "^5.4.1"
 	}
 }

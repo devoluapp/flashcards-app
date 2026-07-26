@@ -4,6 +4,8 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
 	import ImageCropUploader from '$lib/components/ImageCropUploader.svelte';
+	import DrawingEditor from '$lib/components/DrawingEditor.svelte';
+	import { PenLine } from '@lucide/svelte';
 	import HelpTip from '$lib/components/HelpTip.svelte';
 	import AiPromptHelper from '$lib/components/AiPromptHelper.svelte';
 	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
@@ -36,6 +38,29 @@
 
 	function stripHtml(html: string) {
 		return html.replace(/<[^>]*>/g, '').trim();
+	}
+
+	// Editor de desenho livre: abre em branco ou por cima da imagem atual do lado.
+	let drawingFor = $state<'front' | 'back' | null>(null);
+	const drawingBackground = $derived.by((): Blob | string | null => {
+		if (drawingFor === 'front') {
+			return frontImageBlob ?? (card?.front_image && !frontImageRemoved ? fileUrl(card, card.front_image) : null);
+		}
+		if (drawingFor === 'back') {
+			return backImageBlob ?? (card?.back_image && !backImageRemoved ? fileUrl(card, card.back_image) : null);
+		}
+		return null;
+	});
+
+	function onDrawn(blob: Blob) {
+		if (drawingFor === 'front') {
+			frontImageBlob = blob;
+			frontImageRemoved = false;
+		} else if (drawingFor === 'back') {
+			backImageBlob = blob;
+			backImageRemoved = false;
+		}
+		drawingFor = null;
 	}
 
 	async function save(e: Event) {
@@ -90,27 +115,43 @@
 			</div>
 			<RichTextEditor bind:value={front} placeholder="Pergunta, termo ou conceito…" />
 			{#if existingFrontUrl || newFrontPreview}
-				<div class="relative mt-2 inline-block">
-					<img src={newFrontPreview || existingFrontUrl} alt="" class="h-24 w-32 rounded-lg object-cover" />
+				<div class="mt-2 flex items-end gap-2">
+					<div class="relative inline-block">
+						<img src={newFrontPreview || existingFrontUrl} alt="" class="h-24 w-32 rounded-lg object-cover" />
+						<button
+							type="button"
+							aria-label="Remover imagem da frente"
+							onclick={() => {
+								frontImageBlob = null;
+								frontImageRemoved = true;
+							}}
+							class="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-white shadow"
+							>×</button
+						>
+					</div>
 					<button
 						type="button"
-						aria-label="Remover imagem da frente"
-						onclick={() => {
-							frontImageBlob = null;
-							frontImageRemoved = true;
-						}}
-						class="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-white shadow"
-						>×</button
+						onclick={() => (drawingFor = 'front')}
+						class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
 					>
+						<PenLine class="h-3.5 w-3.5" /> Desenhar por cima
+					</button>
 				</div>
 			{:else}
-				<div class="mt-2">
+				<div class="mt-2 space-y-2">
 					<ImageCropUploader
 						onCropped={(b) => {
 							frontImageBlob = b;
 							frontImageRemoved = false;
 						}}
 					/>
+					<button
+						type="button"
+						onclick={() => (drawingFor = 'front')}
+						class="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-neutral-300 py-2 text-sm font-medium text-neutral-500 hover:border-brand-400 hover:text-brand-600 dark:border-neutral-700 dark:hover:text-brand-400"
+					>
+						<PenLine class="h-4 w-4" /> Desenhar imagem
+					</button>
 				</div>
 			{/if}
 		</div>
@@ -125,27 +166,43 @@
 			</div>
 			<RichTextEditor bind:value={back} placeholder="Resposta, definição ou explicação…" />
 			{#if existingBackUrl || newBackPreview}
-				<div class="relative mt-2 inline-block">
-					<img src={newBackPreview || existingBackUrl} alt="" class="h-24 w-32 rounded-lg object-cover" />
+				<div class="mt-2 flex items-end gap-2">
+					<div class="relative inline-block">
+						<img src={newBackPreview || existingBackUrl} alt="" class="h-24 w-32 rounded-lg object-cover" />
+						<button
+							type="button"
+							aria-label="Remover imagem do verso"
+							onclick={() => {
+								backImageBlob = null;
+								backImageRemoved = true;
+							}}
+							class="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-white shadow"
+							>×</button
+						>
+					</div>
 					<button
 						type="button"
-						aria-label="Remover imagem do verso"
-						onclick={() => {
-							backImageBlob = null;
-							backImageRemoved = true;
-						}}
-						class="absolute -top-2 -right-2 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-white shadow"
-						>×</button
+						onclick={() => (drawingFor = 'back')}
+						class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
 					>
+						<PenLine class="h-3.5 w-3.5" /> Desenhar por cima
+					</button>
 				</div>
 			{:else}
-				<div class="mt-2">
+				<div class="mt-2 space-y-2">
 					<ImageCropUploader
 						onCropped={(b) => {
 							backImageBlob = b;
 							backImageRemoved = false;
 						}}
 					/>
+					<button
+						type="button"
+						onclick={() => (drawingFor = 'back')}
+						class="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-neutral-300 py-2 text-sm font-medium text-neutral-500 hover:border-brand-400 hover:text-brand-600 dark:border-neutral-700 dark:hover:text-brand-400"
+					>
+						<PenLine class="h-4 w-4" /> Desenhar imagem
+					</button>
 				</div>
 			{/if}
 		</div>
@@ -175,3 +232,7 @@
 		</button>
 	</form>
 </Modal>
+
+{#if drawingFor}
+	<DrawingEditor background={drawingBackground} onDone={onDrawn} onClose={() => (drawingFor = null)} />
+{/if}
