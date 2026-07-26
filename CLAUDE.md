@@ -58,7 +58,7 @@ obrigação de sincronia — ao mudar uma migration, atualize `types.ts` junto).
 |---|---|---|
 | `users` (auth, builtin) | `plan` (`free`\|`pro`), `desired_retention` (0.7–0.99), `fsrs_params` (json, pesos custom do FSRS), `timezone`, `storage_used` (bytes), `settings` (json livre), `avatar` (file), `is_admin` (bool, dá acesso à tela `/admin/import`; só editável via painel PB — ver hook 6) | `authRule = "verified = true"` — só loga quem confirmou e-mail |
 | `decks` | `user` (rel), `name`, `description`, `color`, `cover_image` (file), `parent` (self-rel, subdecks), `is_public`, `deleted` (soft delete) | list/view/update/delete: dono **e** `verified = true`; create: só autenticado (dono é setado pelo hook, não pela rule) |
-| `cards` | `user`, `deck` (rel), `front`/`back` (rich text/"editor"), `front_image`/`back_image`/`media` (files), `tags` (json), campos de estado FSRS (`state`, `due`, `stability`, `difficulty`, `elapsed_days`, `scheduled_days`, `reps`, `lapses`, `last_review`), `suspended`, `source`, `deleted` | mesma regra de `decks` |
+| `cards` | `user`, `deck` (rel), `front`/`back` (rich text/"editor"), `front_image`/`back_image`/`media` (files), `tags` (json), campos de estado FSRS (`state`, `due`, `stability`, `difficulty`, `elapsed_days`, `scheduled_days`, `reps`, `lapses`, `last_review`), `suspended`, `source`, `deleted`, `image_search`/`image_prompt` (texto; metadados de imagem mnemônica do CSV admin — persistem no card mas só a tela `/admin/import` os exibe/edita) | mesma regra de `decks` |
 | `review_logs` | `user`, `card` (rel), `rating` (1–4), snapshot do estado FSRS no momento da review, `duration_ms` | **imutável**: `updateRule`/`deleteRule = null`; só create/list/view do próprio dono |
 | `import_jobs` | `user`, `type` (`anki`\|`quizlet`\|`csv`), `file`, `target_deck`, `options` (json), `status` (`pending`\|`processing`\|`done`\|`error`), `result` (json: `{created, total}` ou `{error}`) | dono cria/lê; quem processa (`import-worker`) é superuser, passa por cima das rules |
 
@@ -128,8 +128,9 @@ marcar como "Available at Buildtime").
   notas do FSRS: Errei/Difícil/Bom/Fácil), `AiPromptHelper` (só copia um prompt
   para colar em IA externa — não chama nenhuma API de IA; `context` `'import'` |
   `'card'` | `'admin'`, sendo `admin` a variante com colunas
-  `image_search`/`image_prompt`), `Nav` (link "Admin" condicional a
-  `auth.user?.is_admin`), `Modal`, `HelpTip`, `ToastHost`, `AppFooter`.
+  `image_search`/`image_prompt`), `Nav` (para `is_admin`, a aba "Importar" vira
+  "Importar (Admin)" apontando pra `/admin/import` — admin não vê a tela comum
+  de importação), `Modal`, `HelpTip`, `ToastHost`, `AppFooter`.
 - `src/lib/components/admin/` — `ApiKeysPanel` (chaves Pixabay/Pexels/Unsplash/
   OpenAI + modelo, persistidas via `stores/adminKeys.svelte.ts` em localStorage)
   e `CardImagePicker` (grade de 3 imagens buscadas + slot da gerada, seleção,
@@ -163,13 +164,16 @@ client-side, sem `import_jobs`/worker:
 1. CSV (arquivo ou texto colado) com cabeçalho
    `front,back,tags,image_search,image_prompt` (3 últimas opcionais por linha),
    parseado com `papaparse` no browser; cria os `cards` (texto) na hora via
-   `pb.collection('cards').create` com `source: 'admin-import'`.
+   `pb.collection('cards').create` com `source: 'admin-import'` e persiste
+   `image_search`/`image_prompt` no próprio card.
 2. Edição em lote paginada (1/5/10 por página): cada card visível busca 3 imagens
    (`ImageSearchSession`, lazy — só a página visível, pra poupar rate limit) e/ou
-   gera via OpenAI; a escolhida é baixada, comprimida (`blobToWebpResized`,
-   1024px/2MB) e salva em `back_image`. Estado do lote vive só em memória
-   (refresh perde o pareamento CSV↔card; `beforeunload` avisa) — os cards de
-   texto já estão salvos no PB de qualquer forma.
+   gera via OpenAI; `image_search`/`image_prompt` são editáveis no
+   `CardImagePicker` (persistem no card via update; editar a busca recomeça a
+   sessão com o novo termo); a imagem escolhida é baixada, comprimida
+   (`blobToWebpResized`, 1024px/2MB) e salva em `back_image`. As sessões de
+   busca vivem só em memória (`beforeunload` avisa se houver card sem imagem) —
+   cards de texto e metadados já estão salvos no PB de qualquer forma.
 
 ### Upload de imagens (avatar, capa de deck, frente/verso de card)
 

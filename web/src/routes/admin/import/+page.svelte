@@ -121,17 +121,21 @@
 					.split(';')
 					.map((t) => t.trim())
 					.filter(Boolean);
+				const imageSearch = row.image_search?.trim() ?? '';
+				const imagePrompt = row.image_prompt?.trim() ?? '';
 				const record = await pb.collection('cards').create<CardRecord>({
 					deck,
 					front: row.front.trim(),
 					back: row.back.trim(),
 					tags,
-					source: 'admin-import'
+					source: 'admin-import',
+					image_search: imageSearch,
+					image_prompt: imagePrompt
 				});
 				created.push({
 					record,
-					imageSearch: row.image_search?.trim() ?? '',
-					imagePrompt: row.image_prompt?.trim() ?? '',
+					imageSearch,
+					imagePrompt,
 					session: null,
 					generated: null,
 					selected: null,

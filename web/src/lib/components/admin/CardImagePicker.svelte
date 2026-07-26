@@ -4,6 +4,7 @@
 	import type { AdminCardState } from '$lib/admin-import';
 	import type { ImageResult } from '$lib/image-search/types';
 	import { adminKeys } from '$lib/stores/adminKeys.svelte';
+	import { ImageSearchSession } from '$lib/image-search/session.svelte';
 	import { generateImage } from '$lib/image-gen/openai';
 	import { blobToWebpResized, ImageTooLargeError } from '$lib/image-compress';
 	import { pushToast, errorMessage } from '$lib/stores/toast.svelte';
@@ -16,6 +17,9 @@
 		item.record.back_image ? fileUrl(item.record, item.record.back_image, { thumb: '400x300f' }) : ''
 	);
 	const genPrompt = $derived(item.imagePrompt.trim() || item.imageSearch.trim());
+	// "Sujo" = campo editado difere do que está salvo no card (banco).
+	const promptDirty = $derived(item.imagePrompt.trim() !== (item.record.image_prompt ?? ''));
+	const searchDirty = $derived(item.imageSearch.trim() !== (item.record.image_search ?? ''));
 
 	function isSelected(r: ImageResult): boolean {
 		return item.selected?.kind === 'search' && item.selected.result.id === r.id && item.selected.result.provider === r.provider;
@@ -29,15 +33,50 @@
 		item.selected = item.selected?.kind === 'generated' ? null : { kind: 'generated' };
 	}
 
+	// Persiste image_search/image_prompt no card (só a tela admin exibe esses
+	// campos); se o termo de busca mudou, recomeça a busca com ele.
+	// Guard de concorrência: o blur do campo (onchange) e o clique em
+	// "Salvar e gerar" podem disparar quase juntos — compartilham o mesmo save.
+	let metaSavePromise: Promise<void> | null = null;
+	function persistImageMeta(): Promise<void> {
+		metaSavePromise ??= doPersistImageMeta().finally(() => (metaSavePromise = null));
+		return metaSavePromise;
+	}
+
+	async function doPersistImageMeta() {
+		const search = item.imageSearch.trim();
+		const prompt = item.imagePrompt.trim();
+		if (search === item.record.image_search && prompt === item.record.image_prompt) return;
+		const searchChanged = search !== item.record.image_search;
+		try {
+			item.record = await pb
+				.collection('cards')
+				.update<CardRecord>(item.record.id, { image_search: search, image_prompt: prompt });
+			if (searchChanged) {
+				if (item.selected?.kind === 'search') item.selected = null;
+				item.session = new ImageSearchSession(search, {
+					pixabay: adminKeys.pixabay,
+					pexels: adminKeys.pexels,
+					unsplash: adminKeys.unsplash
+				});
+				item.session.next();
+			}
+		} catch (err) {
+			pushToast(errorMessage(err), 'error');
+		}
+	}
+
 	async function generate() {
 		if (!adminKeys.openai.trim()) {
 			pushToast('Configure a chave da OpenAI no painel "Chaves de API" acima.', 'error');
 			return;
 		}
 		if (!genPrompt) {
-			pushToast('Este card não tem coluna image_prompt nem image_search no CSV.', 'error');
+			pushToast('Preencha o prompt de geração (ou a busca) deste card.', 'error');
 			return;
 		}
+		// "Salvar e gerar": persiste os campos editados antes de gerar.
+		if (promptDirty || searchDirty) await persistImageMeta();
 		item.generating = true;
 		try {
 			const blob = await generateImage(genPrompt, adminKeys.openaiModel, adminKeys.openai.trim());
@@ -91,9 +130,6 @@
 		<div class="min-w-0">
 			<p class="font-semibold break-words">{item.record.front}</p>
 			<p class="mt-0.5 text-sm break-words text-neutral-500">{item.record.back}</p>
-			{#if item.imageSearch}
-				<p class="mt-1 text-xs text-neutral-400">Busca: “{item.imageSearch}”</p>
-			{/if}
 		</div>
 		{#if item.saved || item.record.back_image}
 			<span class="flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
@@ -106,9 +142,37 @@
 		<img src={savedImageUrl} alt="Imagem atual do verso" class="mb-3 h-24 rounded-lg object-cover" />
 	{/if}
 
+	<div class="mb-3 grid gap-2 sm:grid-cols-2">
+		<div>
+			<label for="search-{item.record.id}" class="mb-1 block text-xs font-medium text-neutral-500">
+				Busca de imagem (image_search)
+			</label>
+			<input
+				id="search-{item.record.id}"
+				bind:value={item.imageSearch}
+				onchange={persistImageMeta}
+				placeholder="ex.: eiffel tower paris"
+				class="w-full rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+			/>
+		</div>
+		<div>
+			<label for="prompt-{item.record.id}" class="mb-1 block text-xs font-medium text-neutral-500">
+				Prompt de geração (image_prompt)
+			</label>
+			<textarea
+				id="prompt-{item.record.id}"
+				bind:value={item.imagePrompt}
+				onchange={persistImageMeta}
+				rows="1"
+				placeholder="ex.: A giant golden Eiffel Tower..., no text"
+				class="w-full resize-y rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+			></textarea>
+		</div>
+	</div>
+
 	{#if !item.imageSearch && !item.imagePrompt}
 		<p class="rounded-lg bg-neutral-50 p-3 text-sm text-neutral-500 dark:bg-neutral-950">
-			Este card veio sem as colunas <code class="font-mono">image_search</code>/<code class="font-mono">image_prompt</code> — sem busca nem geração.
+			Preencha a busca e/ou o prompt acima para habilitar as imagens deste card.
 		</p>
 	{:else}
 		<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -193,10 +257,10 @@
 				onclick={generate}
 				disabled={item.generating || !genPrompt}
 				class="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-40 dark:border-brand-800 dark:text-brand-300 dark:hover:bg-brand-900/30"
-				title="Gera uma imagem com a OpenAI a partir da coluna image_prompt (pago por imagem)"
+				title="Gera uma imagem com a OpenAI a partir do prompt de geração (pago por imagem)"
 			>
 				<Sparkles class="h-3.5 w-3.5" />
-				{item.generating ? 'Gerando…' : item.generated ? 'Regerar' : 'Gerar'}
+				{item.generating ? 'Gerando…' : promptDirty ? 'Salvar e gerar' : item.generated ? 'Regerar' : 'Gerar'}
 			</button>
 
 			<button

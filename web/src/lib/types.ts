@@ -60,6 +60,9 @@ export interface CardRecord extends BaseRecord {
 	suspended: boolean;
 	source: string;
 	deleted: boolean;
+	/** Metadados de imagem mnemônica (CSV da tela admin); só exibidos/editados em /admin/import. */
+	image_search: string;
+	image_prompt: string;
 }
 
 export interface ReviewLogRecord extends BaseRecord {

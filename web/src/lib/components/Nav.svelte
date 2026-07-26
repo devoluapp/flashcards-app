@@ -11,11 +11,14 @@
 		{ href: '/stats', label: 'Estatísticas', icon: 'chart' },
 		{ href: '/settings', label: 'Config', icon: 'gear' }
 	];
-	// Link admin só aparece pra quem tem is_admin (gating de verdade é no backend/hook).
+	// Admin não vê a tela comum de importação: a aba "Importar" vira "Importar (Admin)"
+	// apontando pra /admin/import (gating de verdade é no backend/hook).
 	let links = $derived(
-		auth.user?.is_admin
-			? [...BASE_LINKS.slice(0, 3), { href: '/admin/import', label: 'Admin', icon: 'shield' }, BASE_LINKS[3]]
-			: BASE_LINKS
+		BASE_LINKS.map((l) =>
+			l.href === '/import' && auth.user?.is_admin
+				? { href: '/admin/import', label: 'Importar (Admin)', icon: l.icon }
+				: l
+		)
 	);
 
 	function isActive(href: string) {
