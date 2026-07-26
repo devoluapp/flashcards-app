@@ -24,7 +24,14 @@
 		ratioLabel ?? (Math.abs(aspectRatio - 16 / 9) < 0.01 ? '16:9' : Math.abs(aspectRatio - 4 / 3) < 0.01 ? '4:3' : aspectRatio.toFixed(2))
 	);
 
+	// Botão "Tirar foto" só em telas de toque (celular/tablet): o input com
+	// capture="environment" abre a câmera nativa direto — ideal pra digitalizar
+	// cards físicos (a foto cai no mesmo fluxo de recorte/compressão). No
+	// desktop o atributo é ignorado e viraria um seletor de arquivo duplicado.
+	const hasCamera = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
 	let fileInput: HTMLInputElement;
+	let cameraInput: HTMLInputElement | undefined = $state();
 	let imgEl: HTMLImageElement | undefined = $state();
 	let cropper: Cropper | null = null;
 	let previewSrc = $state('');
@@ -59,12 +66,14 @@
 	}
 
 	function onFileChange(e: Event) {
-		const file = (e.target as HTMLInputElement).files?.[0];
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
 		if (!file) return;
 		originalSize = file.size;
 		if (previewSrc) URL.revokeObjectURL(previewSrc);
 		previewSrc = URL.createObjectURL(file);
 		cropping = true;
+		input.value = '';
 	}
 
 	$effect(() => {
@@ -127,6 +136,9 @@
 </script>
 
 <input bind:this={fileInput} type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange={onFileChange} />
+{#if hasCamera}
+	<input bind:this={cameraInput} type="file" accept="image/*" capture="environment" class="hidden" onchange={onFileChange} />
+{/if}
 
 {#if cropping}
 	<div class="space-y-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
@@ -148,14 +160,28 @@
 		</div>
 	</div>
 {:else}
-	<button
-		type="button"
-		onclick={pickFile}
-		class="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-neutral-300 py-3 text-sm font-medium text-neutral-500 hover:border-brand-400 hover:text-brand-600 dark:border-neutral-700 dark:hover:text-brand-400"
-	>
-		<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
-			><path d="M12 16V4m0 0L7 9m5-5 5 5" /><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg
+	<div class="flex gap-2">
+		<button
+			type="button"
+			onclick={pickFile}
+			class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-neutral-300 py-3 text-sm font-medium text-neutral-500 hover:border-brand-400 hover:text-brand-600 dark:border-neutral-700 dark:hover:text-brand-400"
 		>
-		Adicionar imagem (recorte {displayRatioLabel})
-	</button>
+			<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+				><path d="M12 16V4m0 0L7 9m5-5 5 5" /><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg
+			>
+			Adicionar imagem (recorte {displayRatioLabel})
+		</button>
+		{#if hasCamera}
+			<button
+				type="button"
+				onclick={() => cameraInput?.click()}
+				class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-neutral-300 py-3 text-sm font-medium text-neutral-500 hover:border-brand-400 hover:text-brand-600 dark:border-neutral-700 dark:hover:text-brand-400"
+			>
+				<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+					><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg
+				>
+				Tirar foto
+			</button>
+		{/if}
+	</div>
 {/if}

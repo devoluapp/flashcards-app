@@ -68,3 +68,29 @@ onRecordUpdateRequest((e) => {
   }
   e.next();
 }, "users");
+
+// 7) Conteúdo mínimo do card: cada lado (frente/verso) precisa de texto OU
+// imagem — front/back não são mais required no schema (cards fotografados
+// podem não ter texto), e o required simples não expressa esse "ou" entre
+// dois campos. Vale para create e update (update não pode esvaziar um lado).
+// Atenção: o helper fica DENTRO do handler porque o JSVM serializa cada
+// handler e o executa isolado — função auxiliar de nível superior não existe
+// lá dentro (ReferenceError).
+function requireCardContent(e) {
+  function sideHasContent(textField, imageField) {
+    const text = String(e.record.get(textField) || "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .trim();
+    return text !== "" || String(e.record.get(imageField) || "") !== "";
+  }
+  if (!sideHasContent("front", "front_image")) {
+    throw new BadRequestError("A frente do card precisa de texto ou imagem.");
+  }
+  if (!sideHasContent("back", "back_image")) {
+    throw new BadRequestError("O verso do card precisa de texto ou imagem.");
+  }
+  e.next();
+}
+onRecordCreateRequest(requireCardContent, "cards");
+onRecordUpdateRequest(requireCardContent, "cards");

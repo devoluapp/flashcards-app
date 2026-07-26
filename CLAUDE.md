@@ -58,7 +58,7 @@ obrigação de sincronia — ao mudar uma migration, atualize `types.ts` junto).
 |---|---|---|
 | `users` (auth, builtin) | `plan` (`free`\|`pro`), `desired_retention` (0.7–0.99), `fsrs_params` (json, pesos custom do FSRS), `timezone`, `storage_used` (bytes), `settings` (json livre), `avatar` (file), `is_admin` (bool, dá acesso à tela `/admin/import`; só editável via painel PB — ver hook 6) | `authRule = "verified = true"` — só loga quem confirmou e-mail |
 | `decks` | `user` (rel), `name`, `description`, `color`, `cover_image` (file), `parent` (self-rel, subdecks), `is_public`, `deleted` (soft delete) | list/view/update/delete: dono **e** `verified = true`; create: só autenticado (dono é setado pelo hook, não pela rule) |
-| `cards` | `user`, `deck` (rel), `front`/`back` (rich text/"editor"), `front_image`/`back_image`/`media` (files), `tags` (json), campos de estado FSRS (`state`, `due`, `stability`, `difficulty`, `elapsed_days`, `scheduled_days`, `reps`, `lapses`, `last_review`), `suspended`, `source`, `deleted`, `image_search`/`image_prompt` (texto; metadados de imagem mnemônica do CSV admin — persistem no card mas só a tela `/admin/import` os exibe/edita) | mesma regra de `decks` |
+| `cards` | `user`, `deck` (rel), `front`/`back` (rich text/"editor", **não-required** — cards fotografados podem ser só imagem; o hook 7 garante texto OU imagem por lado), `front_image`/`back_image`/`media` (files), `tags` (json), campos de estado FSRS (`state`, `due`, `stability`, `difficulty`, `elapsed_days`, `scheduled_days`, `reps`, `lapses`, `last_review`), `suspended`, `source`, `deleted`, `image_search`/`image_prompt` (texto; metadados de imagem mnemônica do CSV admin — persistem no card mas só a tela `/admin/import` os exibe/edita) | mesma regra de `decks` |
 | `review_logs` | `user`, `card` (rel), `rating` (1–4), snapshot do estado FSRS no momento da review, `duration_ms` | **imutável**: `updateRule`/`deleteRule = null`; só create/list/view do próprio dono |
 | `import_jobs` | `user`, `type` (`anki`\|`quizlet`\|`csv`), `file`, `target_deck`, `options` (json), `status` (`pending`\|`processing`\|`done`\|`error`), `result` (json: `{created, total}` ou `{error}`) | dono cria/lê; quem processa (`import-worker`) é superuser, passa por cima das rules |
 
@@ -84,6 +84,12 @@ obrigação de sincronia — ao mudar uma migration, atualize `types.ts` junto).
    admin = marcar o campo no painel do PB. O gating da tela `/admin/import` no
    front é só UX; a garantia real é este hook (a tela não faz nada privilegiado
    no servidor — só operações que o dono já pode nos próprios registros).
+7. Conteúdo mínimo de `cards` (create e update): cada lado precisa de texto OU
+   imagem (`front`/`back` não são required no schema desde a migration
+   `1721301200`). **Armadilha JSVM**: o helper de checagem vive DENTRO do
+   handler — cada handler é serializado e executado isolado, então função
+   auxiliar de nível superior dá `ReferenceError` lá dentro (`forceOwner`
+   funciona por ser o próprio handler registrado).
 
 **Não há integração de IA no backend nem no import-worker.** O que existe é um
 prompt pronto (ver seção Frontend) para o usuário colar em uma ferramenta externa
@@ -193,7 +199,11 @@ dispara busca automática — o admin clica em "Próximas" quando quiser trocar.
 
 Todo upload de imagem passa por `ImageCropUploader.svelte`, que recorta
 (`cropperjs`) e **recomprime no navegador para WebP** antes de enviar — nunca
-manda o arquivo original. Cada caso de uso chama o componente com
+manda o arquivo original. Em telas de toque (`pointer: coarse`) o componente
+também mostra "Tirar foto": um segundo input com `capture="environment"` abre a
+câmera nativa (digitalização de cards físicos), e a foto cai no mesmo fluxo de
+recorte/compressão. No desktop o atributo seria ignorado, então o botão nem
+aparece. Cada caso de uso chama o componente com
 `aspectRatio`/`maxSide`/`maxBytes` batendo com o limite do campo equivalente no
 PocketBase (`pb_migrations`):
 

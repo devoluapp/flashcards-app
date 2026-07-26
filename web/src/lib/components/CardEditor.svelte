@@ -65,8 +65,16 @@
 
 	async function save(e: Event) {
 		e.preventDefault();
-		if (!stripHtml(front) || !stripHtml(back)) {
-			pushToast('Preencha frente e verso do card.', 'error');
+		// Texto é opcional (cards fotografados/desenhados), mas cada lado precisa
+		// de texto OU imagem — mesma regra garantida pelo hook no backend.
+		const hasFrontImage = !!frontImageBlob || (!!card?.front_image && !frontImageRemoved);
+		const hasBackImage = !!backImageBlob || (!!card?.back_image && !backImageRemoved);
+		if (!stripHtml(front) && !hasFrontImage) {
+			pushToast('A frente precisa de texto ou imagem (foto, desenho ou upload).', 'error');
+			return;
+		}
+		if (!stripHtml(back) && !hasBackImage) {
+			pushToast('O verso precisa de texto ou imagem (foto, desenho ou upload).', 'error');
 			return;
 		}
 		saving = true;
