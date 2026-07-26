@@ -2,6 +2,7 @@
 	import Papa from 'papaparse';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { pb } from '$lib/pb';
 	import { auth } from '$lib/stores/auth.svelte';
 	import type { CardRecord, DeckRecord } from '$lib/types';
@@ -24,10 +25,49 @@
 		if (auth.isValid && !isAdmin) {
 			pushToast('Acesso restrito a administradores.', 'error');
 			goto('/decks');
+			return;
 		}
+		// /admin/import?deck=<id> reabre a edição de imagens de um deck já salvo
+		// (entrada pelo botão "Imagens (admin)" na tela do deck).
+		const deckParam = page.url.searchParams.get('deck');
+		if (deckParam) loadExistingDeck(deckParam);
 	});
 
 	let step = $state<'form' | 'batch'>('form');
+	let loadingDeck = $state(false);
+
+	async function loadExistingDeck(id: string) {
+		loadingDeck = true;
+		try {
+			const cards = await pb.collection('cards').getFullList<CardRecord>({
+				filter: `deck="${id}" && deleted=false`,
+				sort: 'created',
+				requestKey: null
+			});
+			if (!cards.length) {
+				pushToast('Este deck não tem cards para editar.', 'info');
+				return;
+			}
+			items = cards.map((record) => ({
+				record,
+				imageSearch: record.image_search ?? '',
+				imagePrompt: record.image_prompt ?? '',
+				session: null,
+				generated: null,
+				selected: null,
+				saving: false,
+				saved: false,
+				generating: false
+			}));
+			deckId = id;
+			batchPage = 0;
+			step = 'batch';
+		} catch (err) {
+			if (!isAbortError(err)) pushToast(errorMessage(err), 'error');
+		} finally {
+			loadingDeck = false;
+		}
+	}
 
 	// --- Passo 1: formulário ---
 	let decks = $state<DeckRecord[]>([]);
@@ -66,7 +106,8 @@
 	const savedCount = $derived(items.filter((i) => i.saved || i.record.back_image).length);
 
 	// Busca lazy: só os cards visíveis criam sessão e disparam a primeira página
-	// (poupa rate limit dos provedores).
+	// (poupa rate limit dos provedores). Card que já tem back_image (deck reaberto)
+	// ganha a sessão mas não busca sozinho — o admin dispara com "Próximas".
 	$effect(() => {
 		for (const item of visibleItems) {
 			if (!item.session && item.imageSearch.trim()) {
@@ -75,7 +116,7 @@
 					pexels: adminKeys.pexels,
 					unsplash: adminKeys.unsplash
 				});
-				item.session.next();
+				if (!item.record.back_image) item.session.next();
 			}
 		}
 	});
@@ -173,7 +214,13 @@
 		CSV com colunas de imagem mnemônica → cards criados na hora → edição em lote escolhendo imagem buscada ou gerada por IA.
 	</p>
 
-	{#if step === 'form'}
+	{#if loadingDeck}
+		<div class="space-y-4">
+			{#each [0, 1, 2] as i (i)}
+				<div class="h-40 animate-pulse rounded-2xl bg-neutral-100 dark:bg-neutral-900"></div>
+			{/each}
+		</div>
+	{:else if step === 'form'}
 		<div class="mb-4"><AiPromptHelper context="admin" /></div>
 		<div class="mb-6"><ApiKeysPanel /></div>
 
@@ -264,6 +311,8 @@
 			</button>
 		</form>
 	{:else}
+		<div class="mb-4"><ApiKeysPanel /></div>
+
 		<div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
 			<p class="text-sm">
 				<strong>{savedCount}</strong> de <strong>{items.length}</strong> card(s) com imagem

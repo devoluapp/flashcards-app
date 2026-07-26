@@ -21,6 +21,18 @@
 	const promptDirty = $derived(item.imagePrompt.trim() !== (item.record.image_prompt ?? ''));
 	const searchDirty = $derived(item.imageSearch.trim() !== (item.record.image_search ?? ''));
 
+	// Textarea que cresce com o conteúdo — sem isso, prompts longos ficam
+	// escondidos num campo de altura fixa.
+	function autogrow(el: HTMLTextAreaElement) {
+		const resize = () => {
+			el.style.height = 'auto';
+			el.style.height = `${el.scrollHeight + 2}px`;
+		};
+		resize();
+		el.addEventListener('input', resize);
+		return { destroy: () => el.removeEventListener('input', resize) };
+	}
+
 	function isSelected(r: ImageResult): boolean {
 		return item.selected?.kind === 'search' && item.selected.result.id === r.id && item.selected.result.provider === r.provider;
 	}
@@ -163,9 +175,10 @@
 				id="prompt-{item.record.id}"
 				bind:value={item.imagePrompt}
 				onchange={persistImageMeta}
+				use:autogrow
 				rows="1"
 				placeholder="ex.: A giant golden Eiffel Tower..., no text"
-				class="w-full resize-y rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+				class="w-full resize-none overflow-hidden rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
 			></textarea>
 		</div>
 	</div>
@@ -206,6 +219,11 @@
 			{:else if item.session?.exhausted}
 				<div class="col-span-2 grid place-items-center rounded-xl bg-neutral-50 p-4 text-sm text-neutral-500 sm:col-span-3 dark:bg-neutral-950">
 					<span class="flex items-center gap-2"><ImageOff class="h-4 w-4" /> Nenhum resultado na busca — tente "Gerar".</span>
+				</div>
+			{:else if item.session && !item.generated && !item.generating}
+				<!-- Deck reaberto com imagem já salva: a busca não roda sozinha -->
+				<div class="col-span-2 grid place-items-center rounded-xl bg-neutral-50 p-4 text-sm text-neutral-500 sm:col-span-3 dark:bg-neutral-950">
+					Clique em "Próximas" para buscar imagens.
 				</div>
 			{/if}
 

@@ -171,9 +171,15 @@ client-side, sem `import_jobs`/worker:
    gera via OpenAI; `image_search`/`image_prompt` são editáveis no
    `CardImagePicker` (persistem no card via update; editar a busca recomeça a
    sessão com o novo termo); a imagem escolhida é baixada, comprimida
-   (`blobToWebpResized`, 1024px/2MB) e salva em `back_image`. As sessões de
-   busca vivem só em memória (`beforeunload` avisa se houver card sem imagem) —
-   cards de texto e metadados já estão salvos no PB de qualquer forma.
+   (`blobToWebpResized`, 1024px/2MB) e salva em `back_image`. O `ApiKeysPanel`
+   (chaves + modelo OpenAI) aparece nos dois passos. As sessões de busca vivem
+   só em memória (`beforeunload` avisa se houver card sem imagem) — cards de
+   texto e metadados já estão salvos no PB de qualquer forma.
+
+A edição é **reentrável**: `/admin/import?deck=<id>` pula o formulário e carrega
+os cards do deck direto no passo 2 (entrada pelo botão "Imagens (admin)" na tela
+do deck, visível só para admin). Nesse modo, card que já tem `back_image` não
+dispara busca automática — o admin clica em "Próximas" quando quiser trocar.
 
 ### Upload de imagens (avatar, capa de deck, frente/verso de card)
 

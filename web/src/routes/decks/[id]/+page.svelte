@@ -4,6 +4,7 @@
 	import type { CardRecord, DeckRecord } from '$lib/types';
 	import CardEditor from '$lib/components/CardEditor.svelte';
 	import HelpTip from '$lib/components/HelpTip.svelte';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { pushToast, errorMessage, isAbortError } from '$lib/stores/toast.svelte';
 
 	const deckId = $derived(page.params.id as string);
@@ -111,6 +112,13 @@
 		{#if dueCount > 0}
 			<a href="/study/{deckId}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
 				>Estudar ({dueCount})</a
+			>
+		{/if}
+		{#if auth.user?.is_admin}
+			<a
+				href="/admin/import?deck={deckId}"
+				class="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+				>Imagens (admin)</a
 			>
 		{/if}
 		<button onclick={openCreate} class="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
